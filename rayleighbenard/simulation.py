@@ -34,7 +34,7 @@ def run(data_dir):
     # T -- temperature
     # Tz -- partial dT/dz
     # p -- pressure
-    problem = de.IVP(domain, variables=['u', 'v', 'w', 'uz', 'vz', 'wz', 'T', 'Tz', 'p'])
+    problem = de.IVP(domain, variables=['u', 'v', 'w', 'uz', 'vz', 'wz', 'T', 'Tz', 'p', 'w_avgt'])
     problem.parameters['Ra'] = params["Ra"]
     problem.parameters['Pr'] = params["Pr"]
     problem.parameters['Ek'] = params["Ek"]
@@ -71,12 +71,7 @@ def run(data_dir):
     problem.add_bc("right(w) = 0", condition="(nx != 0)")
     problem.add_bc("right(p) = 0", condition="(nx == 0)")
     
-    # Substitutions for calculating angular momentum
-    angmom_x = "-v*(R*cos(Theta)*cos(Theta) + z*cos(Theta))"
-    angmom_y = "u*(R*cos(Theta)*cos(Theta) + z*cos(Theta)) - w*(R*sin(Theta)*cos(Theta) + x*sin(Theta))"
-    angmom_z = "v*(R*sin(Theta)*cos(Theta) + x*sin(Theta))"
-    # angmom = f'{angmom_x}*{angmom_x} + {angmom_y}*{angmom_y} + {angmom_z}*{angmom_z}'
-    angmom = f'{angmom_x}*{angmom_x} + {angmom_z}*{angmom_z}' # Result of taking p = (0, v, 0) instead
+    problem.add_equation("dt(w_avgt) = w")
 
     solver = problem.build_solver("RK222")
     
@@ -107,16 +102,10 @@ def run(data_dir):
     # shutil.rmtree(data_dir, ignore_errors=True)
     analysis = solver.evaluator.add_file_handler(data_dir, sim_dt=params["timestep_analysis"], max_writes=200, mode='overwrite')
     analysis.add_system(solver.state, layout='g')
-    
-    # Save parameters to JSON so we know what simulation was run
-    # utils.save_params(params, data_dir=data_dir)
     analysis.add_task("integ(integ(0.5 * (u*u + w*w), 'x'), 'z') / (Lx * Lz)", layout='g', name='E')
-    # analysis.add_task("w*(u*z - w*x)", layout='g', name='FluxAngMom')
-    analysis.add_task(f'w * {angmom}', layout='g', name='FluxAngMom')
-    analysis.add_task(angmom, layout='g', name='AngMom')
     analysis.add_task("T * w - Tz", layout='g', name='FluxHeat')
-    # analysis.add_task("integ(T * w, 'x') / Lx", layout='g', name='FluxConv')
-    # analysis.add_task("integ(-Tz, 'x') / Lx", layout='g', name='FluxCond')
+    analysis.add_task("integ(T * w, 'x') / Lx", layout='g', name='FluxHeatConv')
+    analysis.add_task("integ(-Tz, 'x') / Lx", layout='g', name='FluxHeatCond')
     
     
     ##################################################

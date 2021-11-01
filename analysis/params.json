@@ -1,14 +1,14 @@
 {
-  "Ra": 30000.0,
+  "Ra": 3e4,
   "Pr": 1,
-  "Ek": 0.004,
+  "Ek": 4e-3,
   "Theta": 0.3490658503988659,
   "R": 100,
   "resX": 128,
   "resZ": 64,
-  "Lx": 8,
+  "Lx": 4,
   "Lz": 1,
   "duration": 2,
   "timestep": 1e-05,
-  "timestep_analysis": 0.005
+  "timestep_analysis": 5e-3
 }
