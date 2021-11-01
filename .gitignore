@@ -1,0 +1,14 @@
+__pycache__
+*.h5
+*.ipynb_checkpoints
+
+# Ignore all dirs in root by default
+/*/
+
+# Include main code directory
+!/rayleighbenard/
+
+# Include an example params.json
+!/analysis/
+/analysis/*
+!/analysis/params.json
