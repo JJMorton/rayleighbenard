@@ -1,3 +1,8 @@
+#
+# This file has a bunch of stuff I've used previously, and I haven't
+# used a lot of it in a while so zero guarantee that it works
+#
+
 import h5py
 import numpy as np
 import matplotlib.pyplot as plt
@@ -7,8 +12,7 @@ from IPython.display import Video
 from numpy import fft
 import os.path as path
 
-import rayleighbenard.utils as utils
-
+import utils
 
 def colorplot_matrix(params, x, y, m, labelx='x', labely='y', labelcolor='', title='', limits=(None, None)):
     fig = plt.figure(figsize=(5, 4), dpi=100)
@@ -25,45 +29,6 @@ def find_peaks(arr):
     arr_left = np.append(arr[1:], np.inf)
     arr_right = np.append([np.inf], arr[:-1])
     return (arr > arr_left) & (arr > arr_right)
-
-def get_scales(file):
-    task = file['tasks']['T']
-    t = np.array(task.dims[0]['sim_time'])
-    x = np.array(task.dims[1][0])
-    z = np.array(task.dims[2][0])
-    return t, x, z
-
-def get_temperature(file):
-    task = file['tasks']['T']
-    T = np.array(task)
-    return T
-
-def get_velocity(file):
-    # Velocity
-    w = np.array(file['tasks']['w'])
-    u = np.array(file['tasks']['u'])
-    vel = np.sqrt(u*u + w*w)
-    return vel
-
-def get_angmom(file):
-    # u*z - w*x
-    return NotImplemented
-
-def get_heatflux_cond(file):
-    Tz = np.array(file['tasks']['Tz'])
-    return -Tz
-
-def get_heatflux_conv(file):
-    T = np.array(file['tasks']['T'])
-    w = np.array(file['tasks']['w'])
-    return T * w
-
-def get_heatflux_total(file):
-    return get_heatflux_cond(file) + get_heatflux_conv(file)
-
-def get_angmomflux(file):
-    angmomflux = np.array(file['tasks']['FluxAngMom'])
-    return angmomflux
 
 def plot_power_spectra(params, quantity, t, x, z, name):
     

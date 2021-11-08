@@ -1,12 +1,15 @@
 __pycache__
 *.h5
 *.ipynb_checkpoints
+*.sublime-project
+*.sublime-workspace
+pyrightconfig.json
 
 # Ignore all dirs in root by default
 /*/
 
 # Include main code directory
-!/rayleighbenard/
+!/scripts/
 
 # Include an example params.json
 !/analysis/
