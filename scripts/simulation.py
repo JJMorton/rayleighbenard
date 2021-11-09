@@ -75,7 +75,7 @@ def run(data_dir):
     # T -- temperature
     # Tz -- partial dT/dz
     # p -- pressure
-    average_fields = ['u_avgt', 'v_avgt', 'w_avgt', 'stress_uw', 'stress_uw_low', 'stress_uw_high', 'stress_vw']
+    average_fields = ['u_avgt', 'v_avgt', 'w_avgt', 'u_pert', 'v_pert', 'w_pert', 'stress_uw', 'stress_uw_low', 'stress_uw_high', 'stress_vw']
     problem = de.IVP(domain, variables=['u', 'v', 'w', 'uz', 'vz', 'wz', 'T', 'Tz', 'p', *average_fields])
     problem.parameters['Ra'] = params["Ra"]
     problem.parameters['Pr'] = params["Pr"]
@@ -117,10 +117,13 @@ def run(data_dir):
     problem.add_equation("dt(w_avgt) = w / Tau")
     problem.add_equation("dt(u_avgt) = u / Tau")
     problem.add_equation("dt(v_avgt) = v / Tau")
-    problem.add_equation("dt(stress_uw) = (w - w_avgt)*(u - u_avgt) / Tau")
-    problem.add_equation("dt(stress_uw_low) = lowpass_x(w - w_avgt)*lowpass_x(u - u_avgt) / Tau")
-    problem.add_equation("dt(stress_uw_high) = highpass_x(w - w_avgt)*highpass_x(u - u_avgt) / Tau")
-    problem.add_equation("dt(stress_vw) = (w - w_avgt)*(v - v_avgt) / Tau")
+    problem.add_equation("u_pert = u - u_avgt")
+    problem.add_equation("v_pert = v - v_avgt")
+    problem.add_equation("w_pert = w - w_avgt")
+    problem.add_equation("dt(stress_uw) = w_pert*u_pert / Tau")
+    problem.add_equation("dt(stress_uw_low) = lowpass_x(w_pert)*lowpass_x(u_pert) / Tau")
+    problem.add_equation("dt(stress_uw_high) = highpass_x(w_pert)*highpass_x(u_pert) / Tau")
+    problem.add_equation("dt(stress_vw) = w_pert*v_pert / Tau")
 
     solver = problem.build_solver("RK222")
     
