@@ -4,9 +4,6 @@ import h5py
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as ani
-from matplotlib.colors import LinearSegmentedColormap
-from IPython.display import Video
-from numpy import fft
 from os import path
 from os import mkdir
 import sys
@@ -312,7 +309,7 @@ def video(data_dir):
         plt.xlabel('x')
         plt.ylabel('z')
         plt.title(params_string, fontsize=9)
-        s_per_visc_time = 30
+        s_per_visc_time = 60
         animation = ani.FuncAnimation(fig, animate, frames=temp, interval=params['timestep_analysis']*s_per_visc_time*1000)
         animation.save(path.join(data_dir, 'plots', 'video.mp4'))
         plt.close()

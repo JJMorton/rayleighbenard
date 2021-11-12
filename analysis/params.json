@@ -1,5 +1,5 @@
 {
-  "Ra": 3e4,
+  "Ra": 1e6,
   "Pr": 1,
   "Ek": 4e-3,
   "Theta": 0.3490658503988659,
@@ -7,7 +7,7 @@
   "resZ": 64,
   "Lx": 2,
   "Lz": 1,
-  "duration": 1,
+  "duration": 2,
   "average_interval": 0.25,
   "timestep": 1e-05,
   "timestep_analysis": 5e-3
