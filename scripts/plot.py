@@ -7,8 +7,11 @@ import matplotlib.animation as ani
 from os import path
 from os import mkdir
 import sys
+from scipy.optimize import minimize
+from numpy.linalg import norm
 
 import utils
+
 
 def plot_velocities(data_dir, image_name):
     print(f'Plotting "{image_name}"...')
@@ -58,6 +61,7 @@ def plot_velocities(data_dir, image_name):
         plt.tight_layout()
         plt.savefig(path.join(data_dir, 'plots', image_name))
         plt.close()
+
 
 def plot_velocities_post(data_dir, image_name):
     print(f'Plotting "{image_name}"...')
@@ -112,6 +116,7 @@ def plot_velocities_post(data_dir, image_name):
         plt.savefig(path.join(data_dir, 'plots', image_name))
         plt.close()
 
+
 def plot_stresses(data_dir, image_name):
     print(f'Plotting "{image_name}"...')
     params = utils.read_params(data_dir)
@@ -156,11 +161,125 @@ def plot_stresses(data_dir, image_name):
         ax.plot(stress_vw_dz, z, label='dz(<vw>)')
         ax.set_xlabel('dz(stress)')
         ax.set_ylabel('z')
+        ax.set_xlim((-2.1e-11, 2.1e-11))
         ax.legend()
 
         plt.tight_layout()
         plt.savefig(path.join(data_dir, 'plots', image_name))
         plt.close()
+
+
+def plot_heat_flux_z(data_dir, image_name):
+    print(f'Plotting "{image_name}"...')
+    params = utils.read_params(data_dir)
+    with h5py.File(path.join(data_dir, 'analysis.h5'), mode='r') as file:
+        t = np.array(file['tasks']['u'].dims[0]['sim_time'])
+        x = np.array(file['tasks']['u'].dims[1][0])
+        z = np.array(file['tasks']['u'].dims[2][0])
+
+        T = np.array(file['tasks']['T'])[t >= params['duration'] - params['average_interval']]
+        Tz = np.array(file['tasks']['Tz'])[t >= params['duration'] - params['average_interval']]
+        w = np.array(file['tasks']['w'])[t >= params['duration'] - params['average_interval']]
+
+        fluxconv = np.mean(np.mean(T * w, axis=0), axis=0)
+        fluxcond = np.mean(np.mean(-Tz, axis=0), axis=0)
+        fluxtotal = fluxconv + fluxcond
+
+        plots_shape = np.array((1, 1))
+        plots_size_each = np.array((8, 4))
+
+        tstart = params['duration'] - params['average_interval']
+        tend = params['duration']
+        fig = plt.figure(figsize=np.flip(plots_shape) * plots_size_each)
+        fig.suptitle(f'Averaged from {np.round(tstart, 2)} to {np.round(tend, 2)} viscous times')
+
+        ax = fig.add_subplot(*plots_shape, 1)
+        ax.set_title("Vertical heat flux")
+        ax.plot(fluxcond, z, label="Conductive")
+        ax.plot(fluxconv, z, label="Convective")
+        ax.plot(fluxtotal, z, label="Total")
+        ax.legend()
+        ax.set_ylabel('z')
+
+        plt.tight_layout()
+        plt.savefig(path.join(data_dir, 'plots', image_name))
+        plt.close()
+
+
+def plot_momentum_terms(data_dir, image_name):
+    print(f'Plotting "{image_name}"...')
+    params = utils.read_params(data_dir)
+    with h5py.File(path.join(data_dir, 'analysis.h5'), mode='r') as file:
+
+        t = np.array(file['tasks']['u'].dims[0]['sim_time'])
+        x = np.array(file['tasks']['u'].dims[1][0])
+        z = np.array(file['tasks']['u'].dims[2][0])
+
+        u = np.array(file['tasks']['u'])[t >= params['duration'] - params['average_interval']]
+        v = np.array(file['tasks']['v'])[t >= params['duration'] - params['average_interval']]
+        w = np.array(file['tasks']['w'])[t >= params['duration'] - params['average_interval']]
+        p = np.array(file['tasks']['p'])[t >= params['duration'] - params['average_interval']]
+
+        u_avgt = np.mean(u, axis=0)
+        v_avgt = np.mean(v, axis=0)
+        w_avgt = np.mean(w, axis=0)
+        p_avgt = np.mean(p, axis=0)
+
+        # The RS terms
+        u_pert = u - u_avgt
+        v_pert = v - v_avgt
+        w_pert = w - w_avgt
+        stress_uw_avgt = np.mean(u_pert*w_pert, axis=0)
+        stress_vw_avgt = np.mean(v_pert*w_pert, axis=0)
+        RS_v = -np.mean(np.gradient(stress_vw_avgt, z, axis=-1), axis=0)
+        RS_u = np.mean(np.gradient(stress_uw_avgt, z, axis=-1), axis=0)
+
+        # The viscous terms
+        viscous_v = np.mean(np.gradient(np.gradient(v_avgt, z, axis=-1), z, axis=-1), axis=0)
+        viscous_u = -np.mean(np.gradient(np.gradient(u_avgt, z, axis=-1), z, axis=-1), axis=0)
+
+        # The coriolis terms
+        coriolis_v = -np.mean(u_avgt, axis=0) * np.cos(params['Theta']) / params['Ek']
+        coriolis_u = -np.mean(v_avgt, axis=0) * np.sin(params['Theta']) / params['Ek']
+
+        inertial_v = np.mean(w_avgt * np.gradient(v_avgt, z, axis=-1), axis=0)
+        inertial_u = np.mean(w_avgt * np.gradient(u_avgt, z, axis=-1), axis=0)
+
+        total_v = RS_v + viscous_v + coriolis_v + inertial_v
+        total_u = RS_u + viscous_u + coriolis_u + inertial_u
+
+        plots_shape = np.array((1, 2))
+        plots_size_each = np.array((8, 4))
+
+        tstart = params['duration'] - params['average_interval']
+        tend = params['duration']
+        fig = plt.figure(figsize=np.flip(plots_shape) * plots_size_each)
+        fig.suptitle(f'Averaged from {np.round(tstart, 2)} to {np.round(tend, 2)} viscous times')
+
+        ax = fig.add_subplot(*plots_shape, 1)
+        ax.set_title("y component")
+        ax.plot(RS_v, z, label="RS")
+        ax.plot(viscous_v, z, label="viscous")
+        ax.plot(coriolis_v, z, label="coriolis")
+        ax.plot(inertial_v, z, label="inertial")
+        ax.plot(total_v, z, label="total", ls='--')
+        ax.legend()
+        ax.set_ylabel('z')
+
+        ax = fig.add_subplot(*plots_shape, 2)
+        ax.set_title("x component")
+        ax.plot(RS_u, z, label="RS")
+        ax.plot(viscous_u, z, label="viscous")
+        ax.plot(coriolis_u, z, label="coriolis")
+        ax.plot(inertial_u, z, label="inertial")
+        ax.plot(total_u, z, label="total", ls='--')
+        ax.legend()
+        ax.set_ylabel('z')
+
+        plt.tight_layout()
+        plt.savefig(path.join(data_dir, 'plots', image_name))
+        plt.close()
+
 
 def plot_stresses_post(data_dir, image_name):
     print(f'Plotting "{image_name}"...')
@@ -182,8 +301,8 @@ def plot_stresses_post(data_dir, image_name):
         w_pert = w - w_avgt
         stress_uw_avgt = np.mean(u_pert*w_pert, axis=0)
         stress_vw_avgt = np.mean(v_pert*w_pert, axis=0)
-        stress_uw_avgt_dz = np.diff(np.mean(stress_uw_avgt, axis=0), n=1, axis=-1)
-        stress_vw_avgt_dz = np.diff(np.mean(stress_vw_avgt, axis=0), n=1, axis=-1)
+        stress_uw_avgt_dz = np.gradient(np.mean(stress_uw_avgt, axis=0), z, axis=-1, edge_order=2)
+        stress_vw_avgt_dz = np.gradient(np.mean(stress_vw_avgt, axis=0), z, axis=-1, edge_order=2)
 
         plots_shape = np.array((2, 2))
         plots_size_each = np.array((8, 4))
@@ -211,8 +330,8 @@ def plot_stresses_post(data_dir, image_name):
 
         ax = fig.add_subplot(*plots_shape, 3)
         ax.set_title("dz(stress)")
-        ax.plot(stress_uw_avgt_dz, z[:-1], label='dz(<uw>)')
-        ax.plot(stress_vw_avgt_dz, z[:-1], label='dz(<vw>)')
+        ax.plot(stress_uw_avgt_dz, z, label='dz(<uw>)')
+        ax.plot(stress_vw_avgt_dz, z, label='dz(<vw>)')
         ax.set_xlabel('dz(stress)')
         ax.set_ylabel('z')
         ax.legend()
@@ -220,6 +339,7 @@ def plot_stresses_post(data_dir, image_name):
         plt.tight_layout()
         plt.savefig(path.join(data_dir, 'plots', image_name))
         plt.close()
+
 
 def plot_filter_comparison(data_dir, image_name):
     print(f'Plotting "{image_name}"...')
@@ -288,6 +408,7 @@ def plot_filter_comparison(data_dir, image_name):
         plt.savefig(path.join(data_dir, 'plots', image_name))
         plt.close()
 
+
 def video(data_dir):
     print(f'Rendering video...')
     params = utils.read_params(data_dir)
@@ -314,6 +435,7 @@ def video(data_dir):
         animation.save(path.join(data_dir, 'plots', 'video.mp4'))
         plt.close()
 
+
 if __name__ == "__main__":
     if len(sys.argv) != 2:
         print("Please provide one argument: The file path to the directory to read the analysis from.")
@@ -325,9 +447,11 @@ if __name__ == "__main__":
     except FileExistsError:
         pass
 
-    plot_velocities(data_dir, 'velocities.jpg')
+    # plot_velocities(data_dir, 'velocities.jpg')
     plot_velocities_post(data_dir, 'velocities_post.jpg')
-    plot_stresses(data_dir, 'stresses.jpg')
+    # plot_stresses(data_dir, 'stresses.jpg')
     plot_stresses_post(data_dir, 'stresses_post.jpg')
     plot_filter_comparison(data_dir, 'filter_comparison_stresses.jpg')
+    plot_momentum_terms(data_dir, 'momentum_terms.jpg')
+    plot_heat_flux_z(data_dir, 'heat_flux_z.jpg')
     # video(data_dir)

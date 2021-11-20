@@ -7,8 +7,8 @@
   "resZ": 64,
   "Lx": 2,
   "Lz": 1,
-  "duration": 2,
+  "duration": 1,
   "average_interval": 0.25,
   "timestep": 1e-05,
-  "timestep_analysis": 5e-3
+  "timestep_analysis": 1e-3
 }
