@@ -75,19 +75,19 @@ def run(data_dir):
     # T -- temperature
     # Tz -- partial dT/dz
     # p -- pressure
-    average_fields = ['u_avgt', 'v_avgt', 'w_avgt', 'u_pert', 'v_pert', 'w_pert', 'stress_uw', 'stress_uw_low', 'stress_uw_high', 'stress_vw']
-    problem = de.IVP(domain, variables=['u', 'v', 'w', 'uz', 'vz', 'wz', 'T', 'Tz', 'p', *average_fields])
+    # average_fields = ['u_avgt', 'v_avgt', 'w_avgt', 'u_pert', 'v_pert', 'w_pert', 'stress_uw', 'stress_uw_low', 'stress_uw_high', 'stress_vw']
+    problem = de.IVP(domain, variables=['u', 'v', 'w', 'uz', 'vz', 'wz', 'T', 'Tz', 'p'])#, *average_fields])
     problem.parameters['Ra'] = params["Ra"]
     problem.parameters['Pr'] = params["Pr"]
     problem.parameters['Ek'] = params["Ek"]
     problem.parameters['Theta'] = params["Theta"]
     problem.parameters['Lx'] = params["Lx"]
     problem.parameters['Lz'] = params["Lz"]
-    problem.parameters['Tau'] = params["average_interval"] # The time period over which we want to average
+    # problem.parameters['Tau'] = params["average_interval"] # The time period over which we want to average
 
     # Nondimensionalised Boussinesq equations
-    problem.add_equation("dt(u) + dx(p) - dx(dx(u)) - dz(uz) - 2*v*sin(Theta)/Ek = -u*dx(u) - w*uz")
-    problem.add_equation("dt(v) - dx(dx(v)) - dz(vz) - 2*w*cos(Theta)/Ek + 2*u*sin(Theta)/Ek = -u*dx(v) - w*vz")
+    problem.add_equation("dt(u) + dx(p) - dx(dx(u)) - dz(uz) - v*sin(Theta)/Ek = -u*dx(u) - w*uz")
+    problem.add_equation("dt(v) - dx(dx(v)) - dz(vz) - w*cos(Theta)/Ek + u*sin(Theta)/Ek = -u*dx(v) - w*vz")
     problem.add_equation("dt(w) + dz(p) - dx(dx(w)) - dz(wz) + v*cos(Theta)/Ek - Ra/Pr * T = -u*dx(w) - w*wz")
 
     # Convection-diffusion equation, governs evolution of temperature field
@@ -104,6 +104,7 @@ def run(data_dir):
 
     # Boundary conditions
     problem.add_bc("left(Tz) = -4")
+    # problem.add_bc("left(T) = 20")
     problem.add_bc("right(T) = 0")
     problem.add_bc("left(u) = 0")
     problem.add_bc("left(v) = 0")
@@ -112,18 +113,18 @@ def run(data_dir):
     problem.add_bc("right(v) = 0")
     problem.add_bc("right(w) = 0", condition="(nx != 0)")
     problem.add_bc("right(p) = 0", condition="(nx == 0)")
-    
-    # Time averaged quantities
-    problem.add_equation("dt(w_avgt) = w / Tau")
-    problem.add_equation("dt(u_avgt) = u / Tau")
-    problem.add_equation("dt(v_avgt) = v / Tau")
-    problem.add_equation("u_pert = u - u_avgt")
-    problem.add_equation("v_pert = v - v_avgt")
-    problem.add_equation("w_pert = w - w_avgt")
-    problem.add_equation("dt(stress_uw) = w_pert*u_pert / Tau")
-    problem.add_equation("dt(stress_uw_low) = lowpass_x(w_pert)*lowpass_x(u_pert) / Tau")
-    problem.add_equation("dt(stress_uw_high) = highpass_x(w_pert)*highpass_x(u_pert) / Tau")
-    problem.add_equation("dt(stress_vw) = w_pert*v_pert / Tau")
+
+    # # Time averaged quantities
+    # problem.add_equation("dt(w_avgt) = w / Tau")
+    # problem.add_equation("dt(u_avgt) = u / Tau")
+    # problem.add_equation("dt(v_avgt) = v / Tau")
+    # problem.add_equation("u_pert = u - u_avgt")
+    # problem.add_equation("v_pert = v - v_avgt")
+    # problem.add_equation("w_pert = w - w_avgt")
+    # problem.add_equation("dt(stress_uw) = w_pert*u_pert / Tau")
+    # problem.add_equation("dt(stress_uw_low) = lowpass_x(w_pert)*lowpass_x(u_pert) / Tau")
+    # problem.add_equation("dt(stress_uw_high) = highpass_x(w_pert)*highpass_x(u_pert) / Tau")
+    # problem.add_equation("dt(stress_vw) = w_pert*v_pert / Tau")
 
     solver = problem.build_solver("RK222")
     
@@ -167,25 +168,31 @@ def run(data_dir):
     analysis.add_task("T * w - Tz", layout='g', name='FluxHeat')
     analysis.add_task("integ(T * w, 'x') / Lx", layout='g', name='FluxHeatConv')
     analysis.add_task("integ(-Tz, 'x') / Lx", layout='g', name='FluxHeatCond')
+    analysis.add_task("dz(u)", layout='g', name='u_dz')
+    analysis.add_task("dz(v)", layout='g', name='v_dz')
+    analysis.add_task("dz(w)", layout='g', name='w_dz')
+    analysis.add_task("dz(dz(u))", layout='g', name='u_dz2')
+    analysis.add_task("dz(dz(v))", layout='g', name='v_dz2')
+    analysis.add_task("dz(dz(w))", layout='g', name='w_dz2')
     
-    # Set interval of infinity so that that handler is not called automatically
-    # We will manually call the handler, so that we can reset the averages to zero straight after
-    averaged = solver.evaluator.add_file_handler(path.join(data_dir, 'averaged'), sim_dt=np.inf, mode='overwrite')
-    # Warning: dirty hack
-    # Make dedalus think this handler has been evaluated at time t=0
-    # This stops the handlers being evaluated at the start:
-    averaged.last_wall_div = averaged.last_sim_div = averaged.last_iter_div = 0
-    averaged.add_task("u_avgt", layout='g', name='u')
-    averaged.add_task("v_avgt", layout='g', name='v')
-    averaged.add_task("w_avgt", layout='g', name='w')
-    averaged.add_task("stress_uw", layout='g', name='stress_uw')
-    averaged.add_task("stress_vw", layout='g', name='stress_vw')
-    averaged.add_task("dz(integ(stress_uw, 'x') / Lx)", layout='g', name='stress_uw_avgx_dz')
-    averaged.add_task("dz(integ(stress_vw, 'x') / Lx)", layout='g', name='stress_vw_avgx_dz')
-    averaged.add_task("stress_uw_low", layout='g', name='stress_uw_low')
-    averaged.add_task("stress_uw_high", layout='g', name='stress_uw_high')
-    averaged.add_task("dz(integ(stress_uw_low, 'x') / Lx)", layout='g', name='stress_uw_low_avgx_dz')
-    averaged.add_task("dz(integ(stress_uw_high, 'x') / Lx)", layout='g', name='stress_uw_high_avgx_dz')
+    # # Set interval of infinity so that that handler is not called automatically
+    # # We will manually call the handler, so that we can reset the averages to zero straight after
+    # averaged = solver.evaluator.add_file_handler(path.join(data_dir, 'averaged'), sim_dt=np.inf, mode='overwrite')
+    # # Warning: dirty hack
+    # # Make dedalus think this handler has been evaluated at time t=0
+    # # This stops the handlers being evaluated at the start:
+    # averaged.last_wall_div = averaged.last_sim_div = averaged.last_iter_div = 0
+    # averaged.add_task("u_avgt", layout='g', name='u')
+    # averaged.add_task("v_avgt", layout='g', name='v')
+    # averaged.add_task("w_avgt", layout='g', name='w')
+    # averaged.add_task("stress_uw", layout='g', name='stress_uw')
+    # averaged.add_task("stress_vw", layout='g', name='stress_vw')
+    # averaged.add_task("dz(integ(stress_uw, 'x') / Lx)", layout='g', name='stress_uw_avgx_dz')
+    # averaged.add_task("dz(integ(stress_vw, 'x') / Lx)", layout='g', name='stress_vw_avgx_dz')
+    # averaged.add_task("stress_uw_low", layout='g', name='stress_uw_low')
+    # averaged.add_task("stress_uw_high", layout='g', name='stress_uw_high')
+    # averaged.add_task("dz(integ(stress_uw_low, 'x') / Lx)", layout='g', name='stress_uw_low_avgx_dz')
+    # averaged.add_task("dz(integ(stress_uw_high, 'x') / Lx)", layout='g', name='stress_uw_high_avgx_dz')
     
     
     ##################################################
@@ -199,12 +206,12 @@ def run(data_dir):
     ##################################################
     # Run the simulation
     
-    def reset_averages():
-        for var in average_fields:
-            field = solver.state[var]
-            nx, nz = np.array(field['g']).shape
-            field['g'] = [[0]*nz]*nx
-        print(f'Reset time-averaged fields at time t={solver.sim_time}')
+    # def reset_averages():
+    #     for var in average_fields:
+    #         field = solver.state[var]
+    #         nx, nz = np.array(field['g']).shape
+    #         field['g'] = [[0]*nz]*nx
+    #     print(f'Reset time-averaged fields at time t={solver.sim_time}')
     
     solver.stop_sim_time = params["duration"]
     solver.stop_wall_time = np.inf
@@ -212,26 +219,26 @@ def run(data_dir):
     print("Simulation start")
     sim_time_start = solver.sim_time
     t0 = time.time()
-    # Average at end of first whole average_interval
-    next_average = (np.ceil(solver.sim_time / params["average_interval"]) + 1) * params["average_interval"]
+    # # Average at end of first whole average_interval
+    # next_average = (np.ceil(solver.sim_time / params["average_interval"]) + 1) * params["average_interval"]
     dt = params["timestep"]
-    reset_averages()
+    # reset_averages()
     while solver.proceed:
         # Step the simulation forwards
         dt = CFL.compute_dt()
         dt = solver.step(dt)
         
-        # When we reach the end of a time-averaging interval, save to analysis file
-        if solver.sim_time >= next_average:
-            next_average += params["average_interval"]
-            solver.evaluate_handlers_now(dt, handlers=[averaged])
-            print(''.join([' '] * 200), end='\r')
-            print(f'Calculated time-averaged fields at time t={solver.sim_time}')
+        # # When we reach the end of a time-averaging interval, save to analysis file
+        # if solver.sim_time >= next_average:
+        #     next_average += params["average_interval"]
+        #     solver.evaluate_handlers_now(dt, handlers=[averaged])
+        #     print(''.join([' '] * 200), end='\r')
+        #     print(f'Calculated time-averaged fields at time t={solver.sim_time}')
             
-        # When we reach the start of a time-averaging interval, zero the averages to restart them
-        if solver.sim_time % params["average_interval"] < dt:
-            print(''.join([' '] * 200), end='\r')
-            reset_averages()
+        # # When we reach the start of a time-averaging interval, zero the averages to restart them
+        # if solver.sim_time % params["average_interval"] < dt:
+        #     print(''.join([' '] * 200), end='\r')
+        #     reset_averages()
         
         # Log the progress
         if (solver.iteration - 1) % 10 == 0:
