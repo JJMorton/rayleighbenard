@@ -4,6 +4,7 @@ __pycache__
 *.sublime-project
 *.sublime-workspace
 pyrightconfig.json
+log
 
 # Ignore all dirs in root by default
 /*/

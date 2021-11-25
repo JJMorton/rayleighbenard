@@ -16,13 +16,14 @@ def plot_velocities(data_dir, image_name):
     params = utils.read_params(data_dir)
     with h5py.File(path.join(data_dir, 'averaged', 'averaged.h5'), mode='r') as file:
 
+        num_dims = len(file['tasks']['u'].dims)
         t = np.array(file['tasks']['u'].dims[0]['sim_time'])
         x = np.array(file['tasks']['u'].dims[1][0])
-        z = np.array(file['tasks']['u'].dims[2][0])
+        z = np.array(file['tasks']['u'].dims[num_dims - 1][0])
 
-        u = np.array(file['tasks']['u'])[-1]
-        v = np.array(file['tasks']['v'])[-1]
-        w = np.array(file['tasks']['w'])[-1]
+        u = np.squeeze(np.array(file['tasks']['u'])[-1])
+        v = np.squeeze(np.array(file['tasks']['v'])[-1])
+        w = np.squeeze(np.array(file['tasks']['w'])[-1])
 
         plots_shape = np.array((2, 2))
         plots_size_each = np.array((8, 4))
@@ -66,13 +67,19 @@ def plot_velocities_post(data_dir, image_name):
     params = utils.read_params(data_dir)
     with h5py.File(path.join(data_dir, 'analysis.h5'), mode='r') as file:
 
+        num_dims = len(file['tasks']['u'].dims)
         t = np.array(file['tasks']['u'].dims[0]['sim_time'])
         x = np.array(file['tasks']['u'].dims[1][0])
-        z = np.array(file['tasks']['u'].dims[2][0])
+        z = np.array(file['tasks']['u'].dims[num_dims - 1][0])
 
-        u = np.array(file['tasks']['u'])[np.logical_and(t >= params['duration'] - params['average_interval'], t <= params['duration'])]
-        v = np.array(file['tasks']['v'])[np.logical_and(t >= params['duration'] - params['average_interval'], t <= params['duration'])]
-        w = np.array(file['tasks']['w'])[np.logical_and(t >= params['duration'] - params['average_interval'], t <= params['duration'])]
+        print('t.shape, x.shape, z.shape')
+        print(t.shape, x.shape, z.shape)
+
+        timeframe_mask = np.logical_and(t >= params['duration'] - params['average_interval'], t <= params['duration'])
+
+        u = np.squeeze(np.array(file['tasks']['u'])[timeframe_mask])
+        v = np.squeeze(np.array(file['tasks']['v'])[timeframe_mask])
+        w = np.squeeze(np.array(file['tasks']['w'])[timeframe_mask])
 
         u_avgt = np.mean(u, axis=0)
         v_avgt = np.mean(v, axis=0)
@@ -120,12 +127,13 @@ def plot_stresses(data_dir, image_name):
     params = utils.read_params(data_dir)
     with h5py.File(path.join(data_dir, 'averaged', 'averaged.h5'), mode='r') as file:
 
+        num_dims = len(file['tasks']['u'].dims)
         t = np.array(file['tasks']['u'].dims[0]['sim_time'])
         x = np.array(file['tasks']['u'].dims[1][0])
-        z = np.array(file['tasks']['u'].dims[2][0])
+        z = np.array(file['tasks']['u'].dims[num_dims - 1][0])
 
-        stress_uw = np.array(file['tasks']['stress_uw'])[-1]
-        stress_vw = np.array(file['tasks']['stress_vw'])[-1]
+        stress_uw = np.squeeze(np.array(file['tasks']['stress_uw'])[-1])
+        stress_vw = np.squeeze(np.array(file['tasks']['stress_vw'])[-1])
         stress_uw_dz = np.squeeze(np.array(file['tasks']['stress_uw_avgx_dz'])[-1])
         stress_vw_dz = np.squeeze(np.array(file['tasks']['stress_vw_avgx_dz'])[-1])
 
@@ -172,13 +180,16 @@ def plot_stresses_post(data_dir, image_name):
     params = utils.read_params(data_dir)
     with h5py.File(path.join(data_dir, 'analysis.h5'), mode='r') as file:
 
+        num_dims = len(file['tasks']['u'].dims)
         t = np.array(file['tasks']['u'].dims[0]['sim_time'])
         x = np.array(file['tasks']['u'].dims[1][0])
-        z = np.array(file['tasks']['u'].dims[2][0])
+        z = np.array(file['tasks']['u'].dims[num_dims - 1][0])
 
-        u = np.array(file['tasks']['u'])[np.logical_and(t >= params['duration'] - params['average_interval'], t <= params['duration'])]
-        v = np.array(file['tasks']['v'])[np.logical_and(t >= params['duration'] - params['average_interval'], t <= params['duration'])]
-        w = np.array(file['tasks']['w'])[np.logical_and(t >= params['duration'] - params['average_interval'], t <= params['duration'])]
+        timeframe_mask = np.logical_and(t >= params['duration'] - params['average_interval'], t <= params['duration'])
+
+        u = np.squeeze(np.array(file['tasks']['u'])[timeframe_mask])
+        v = np.squeeze(np.array(file['tasks']['v'])[timeframe_mask])
+        w = np.squeeze(np.array(file['tasks']['w'])[timeframe_mask])
         u_avgt = np.mean(u, axis=0)
         v_avgt = np.mean(v, axis=0)
         w_avgt = np.mean(w, axis=0)
@@ -231,13 +242,16 @@ def plot_heat_flux_z(data_dir, image_name):
     print(f'Plotting "{image_name}"...')
     params = utils.read_params(data_dir)
     with h5py.File(path.join(data_dir, 'analysis.h5'), mode='r') as file:
+        num_dims = len(file['tasks']['u'].dims)
         t = np.array(file['tasks']['u'].dims[0]['sim_time'])
         x = np.array(file['tasks']['u'].dims[1][0])
-        z = np.array(file['tasks']['u'].dims[2][0])
+        z = np.array(file['tasks']['u'].dims[num_dims - 1][0])
 
-        T = np.array(file['tasks']['T'])[np.logical_and(t >= params['duration'] - params['average_interval'], t <= params['duration'])]
-        Tz = np.array(file['tasks']['Tz'])[np.logical_and(t >= params['duration'] - params['average_interval'], t <= params['duration'])]
-        w = np.array(file['tasks']['w'])[np.logical_and(t >= params['duration'] - params['average_interval'], t <= params['duration'])]
+        timeframe_mask = np.logical_and(t >= params['duration'] - params['average_interval'], t <= params['duration'])
+
+        T = np.squeeze(np.array(file['tasks']['T'])[timeframe_mask])
+        Tz = np.squeeze(np.array(file['tasks']['Tz'])[timeframe_mask])
+        w = np.squeeze(np.array(file['tasks']['w'])[timeframe_mask])
 
         fluxconv = np.mean(np.mean(T * w, axis=0), axis=0)
         fluxcond = np.mean(np.mean(-Tz, axis=0), axis=0)
@@ -268,13 +282,14 @@ def plot_energy(data_dir, image_name):
     print(f'Plotting "{image_name}"...')
     params = utils.read_params(data_dir)
     with h5py.File(path.join(data_dir, 'analysis.h5'), mode='r') as file:
+        num_dims = len(file['tasks']['u'].dims)
         t = np.array(file['tasks']['u'].dims[0]['sim_time'])
         x = np.array(file['tasks']['u'].dims[1][0])
-        z = np.array(file['tasks']['u'].dims[2][0])
+        z = np.array(file['tasks']['u'].dims[num_dims - 1][0])
 
-        u = np.array(file['tasks']['u'])
-        v = np.array(file['tasks']['v'])
-        w = np.array(file['tasks']['w'])
+        u = np.squeeze(np.array(file['tasks']['u']))
+        v = np.squeeze(np.array(file['tasks']['v']))
+        w = np.squeeze(np.array(file['tasks']['w']))
 
         KE = np.sum(0.5 * (u*u + v*v + w*w), axis=(1, 2))
 
@@ -299,28 +314,29 @@ def plot_momentum_terms(data_dir, image_name):
     params = utils.read_params(data_dir)
     with h5py.File(path.join(data_dir, 'analysis.h5'), mode='r') as file:
 
+        num_dims = len(file['tasks']['u'].dims)
         t = np.array(file['tasks']['u'].dims[0]['sim_time'])
         x = np.array(file['tasks']['u'].dims[1][0])
-        z = np.array(file['tasks']['u'].dims[2][0])
+        z = np.array(file['tasks']['u'].dims[num_dims - 1][0])
 
         timeframe_mask = np.logical_and(t >= params['duration'] - params['average_interval'], t <= params['duration'])
 
-        u = np.array(file['tasks']['u'])[timeframe_mask]
-        v = np.array(file['tasks']['v'])[timeframe_mask]
-        w = np.array(file['tasks']['w'])[timeframe_mask]
+        u = np.squeeze(np.array(file['tasks']['u'])[timeframe_mask])
+        v = np.squeeze(np.array(file['tasks']['v'])[timeframe_mask])
+        w = np.squeeze(np.array(file['tasks']['w'])[timeframe_mask])
         u_avgt = np.mean(u, axis=0)
         v_avgt = np.mean(v, axis=0)
         w_avgt = np.mean(w, axis=0)
 
-        u_dz = np.array(file['tasks']['u_dz'])[timeframe_mask]
-        v_dz = np.array(file['tasks']['v_dz'])[timeframe_mask]
-        w_dz = np.array(file['tasks']['w_dz'])[timeframe_mask]
+        u_dz = np.squeeze(np.array(file['tasks']['u_dz'])[timeframe_mask])
+        v_dz = np.squeeze(np.array(file['tasks']['v_dz'])[timeframe_mask])
+        w_dz = np.squeeze(np.array(file['tasks']['w_dz'])[timeframe_mask])
         u_dz_avgt = np.mean(u_dz, axis=0)
         v_dz_avgt = np.mean(v_dz, axis=0)
         w_dz_avgt = np.mean(w_dz, axis=0)
 
-        u_dz2 = np.array(file['tasks']['u_dz2'])[timeframe_mask]
-        v_dz2 = np.array(file['tasks']['v_dz2'])[timeframe_mask]
+        u_dz2 = np.squeeze(np.array(file['tasks']['u_dz2'])[timeframe_mask])
+        v_dz2 = np.squeeze(np.array(file['tasks']['v_dz2'])[timeframe_mask])
         u_dz2_avgt = np.mean(u_dz2, axis=0)
         v_dz2_avgt = np.mean(v_dz2, axis=0)
 
@@ -380,16 +396,17 @@ def plot_filter_comparison(data_dir, image_name):
     params = utils.read_params(data_dir)
     with h5py.File(path.join(data_dir, 'averaged', 'averaged.h5'), mode='r') as file:
 
+        num_dims = len(file['tasks']['u'].dims)
         t = np.array(file['tasks']['u'].dims[0]['sim_time'])
         x = np.array(file['tasks']['u'].dims[1][0])
-        z = np.array(file['tasks']['u'].dims[2][0])
+        z = np.array(file['tasks']['u'].dims[num_dims - 1][0])
 
 
         # Plot the stresses in 2d
 
-        stress_uw = np.array(file['tasks']['stress_uw'])[-1]
-        stress_uw_low = np.array(file['tasks']['stress_uw_low'])[-1]
-        stress_uw_high = np.array(file['tasks']['stress_uw_high'])[-1]
+        stress_uw = np.squeeze(np.array(file['tasks']['stress_uw'])[-1])
+        stress_uw_low = np.squeeze(np.array(file['tasks']['stress_uw_low'])[-1])
+        stress_uw_high = np.squeeze(np.array(file['tasks']['stress_uw_high'])[-1])
 
         plots_shape = np.array((2, 2))
         plots_size_each = np.array((8, 4))
@@ -448,7 +465,7 @@ def video(data_dir):
     params = utils.read_params(data_dir)
     with h5py.File(path.join(data_dir, 'analysis.h5'), mode='r') as file:
         # Load datasets
-        temp = file['tasks']['T']
+        temp = np.squeeze(file['tasks']['T'])
         t = temp.dims[0]['sim_time']
         x = temp.dims[1][0]
         z = temp.dims[2][0]

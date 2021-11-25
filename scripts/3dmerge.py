@@ -12,6 +12,11 @@ def merge(data_dir):
     print('Merging files...')
     t0 = time.time()
 
+    post.merge_process_files(path.join(data_dir, "snapshots"), cleanup=True)
+    set_paths = glob(path.join(data_dir, "snapshots", '*.h5'))
+    post.merge_sets(path.join(data_dir, "snapshots", "snapshots_new.h5"), set_paths, cleanup=True)
+    shutil.move(path.join(data_dir, 'snapshots', 'snapshots_new.h5'), path.join(data_dir, 'snapshots', 'snapshots.h5'))
+
     post.merge_process_files(data_dir, cleanup=True)
     set_paths = glob(path.join(data_dir, '*.h5'))
     post.merge_sets(path.join(data_dir, 'analysis_new.h5'), set_paths, cleanup=True)
