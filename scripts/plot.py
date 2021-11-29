@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import h5py
 import numpy as np
@@ -14,57 +14,6 @@ import utils
 def plot_velocities(data_dir, image_name):
     print(f'Plotting "{image_name}"...')
     params = utils.read_params(data_dir)
-    with h5py.File(path.join(data_dir, 'averaged', 'averaged.h5'), mode='r') as file:
-
-        num_dims = len(file['tasks']['u'].dims)
-        t = np.array(file['tasks']['u'].dims[0]['sim_time'])
-        x = np.array(file['tasks']['u'].dims[1][0])
-        z = np.array(file['tasks']['u'].dims[num_dims - 1][0])
-
-        u = np.squeeze(np.array(file['tasks']['u'])[-1])
-        v = np.squeeze(np.array(file['tasks']['v'])[-1])
-        w = np.squeeze(np.array(file['tasks']['w'])[-1])
-
-        plots_shape = np.array((2, 2))
-        plots_size_each = np.array((8, 4))
-
-        tstart = 0 if len(t) == 1 else t[-2]
-        tend = t[-1]
-        fig = plt.figure(figsize=np.flip(plots_shape) * plots_size_each)
-        fig.suptitle(f'Averaged from {np.round(tstart, 2)} to {np.round(tend, 2)} viscous times')
-
-        ax = fig.add_subplot(*plots_shape, 1)
-        ax.set_title("Time averaged u")
-        pcm = ax.pcolormesh(x, z, u.T, shading='nearest', cmap="CMRmap", label='<u>')
-        fig.colorbar(pcm, ax=ax)
-        ax.set_xlabel('x')
-        ax.set_ylabel('z')
-        ax.set_aspect(1)
-
-        ax = fig.add_subplot(*plots_shape, 2)
-        ax.set_title("Time averaged v")
-        pcm = ax.pcolormesh(x, z, v.T, shading='nearest', cmap="CMRmap", label='<v>')
-        fig.colorbar(pcm, ax=ax)
-        ax.set_xlabel('x')
-        ax.set_ylabel('z')
-        ax.set_aspect(1)
-
-        ax = fig.add_subplot(*plots_shape, 3)
-        ax.set_title("Time averaged w")
-        pcm = ax.pcolormesh(x, z, w.T, shading='nearest', cmap="CMRmap", label='<w>')
-        fig.colorbar(pcm, ax=ax)
-        ax.set_xlabel('x')
-        ax.set_ylabel('z')
-        ax.set_aspect(1)
-
-        plt.tight_layout()
-        plt.savefig(path.join(data_dir, 'plots', image_name))
-        plt.close()
-
-
-def plot_velocities_post(data_dir, image_name):
-    print(f'Plotting "{image_name}"...')
-    params = utils.read_params(data_dir)
     with h5py.File(path.join(data_dir, 'analysis.h5'), mode='r') as file:
 
         num_dims = len(file['tasks']['u'].dims)
@@ -72,10 +21,11 @@ def plot_velocities_post(data_dir, image_name):
         x = np.array(file['tasks']['u'].dims[1][0])
         z = np.array(file['tasks']['u'].dims[num_dims - 1][0])
 
-        print('t.shape, x.shape, z.shape')
-        print(t.shape, x.shape, z.shape)
+        duration = min(params['duration'], t[-1])
+        if duration < params['average_interval']: print('WARNING: averaging interval longer than simulation duration, averaging over entire duration...')
+        timeframe_mask = np.logical_and(t >= duration - params['average_interval'], t <= duration)
 
-        timeframe_mask = np.logical_and(t >= params['duration'] - params['average_interval'], t <= params['duration'])
+        t = t[timeframe_mask]
 
         u = np.squeeze(np.array(file['tasks']['u'])[timeframe_mask])
         v = np.squeeze(np.array(file['tasks']['v'])[timeframe_mask])
@@ -88,8 +38,8 @@ def plot_velocities_post(data_dir, image_name):
         plots_shape = np.array((2, 2))
         plots_size_each = np.array((8, 4))
 
-        tstart = params['duration'] - params['average_interval']
-        tend = params['duration']
+        tstart = duration - params['average_interval']
+        tend = duration
         fig = plt.figure(figsize=np.flip(plots_shape) * plots_size_each)
         fig.suptitle(f'Averaged from {np.round(tstart, 2)} to {np.round(tend, 2)} viscous times')
 
@@ -125,59 +75,6 @@ def plot_velocities_post(data_dir, image_name):
 def plot_stresses(data_dir, image_name):
     print(f'Plotting "{image_name}"...')
     params = utils.read_params(data_dir)
-    with h5py.File(path.join(data_dir, 'averaged', 'averaged.h5'), mode='r') as file:
-
-        num_dims = len(file['tasks']['u'].dims)
-        t = np.array(file['tasks']['u'].dims[0]['sim_time'])
-        x = np.array(file['tasks']['u'].dims[1][0])
-        z = np.array(file['tasks']['u'].dims[num_dims - 1][0])
-
-        stress_uw = np.squeeze(np.array(file['tasks']['stress_uw'])[-1])
-        stress_vw = np.squeeze(np.array(file['tasks']['stress_vw'])[-1])
-        stress_uw_dz = np.squeeze(np.array(file['tasks']['stress_uw_avgx_dz'])[-1])
-        stress_vw_dz = np.squeeze(np.array(file['tasks']['stress_vw_avgx_dz'])[-1])
-
-        plots_shape = np.array((2, 2))
-        plots_size_each = np.array((8, 4))
-
-        tstart = 0 if len(t) == 1 else t[-2]
-        tend = t[-1]
-        fig = plt.figure(figsize=np.flip(plots_shape) * plots_size_each)
-        fig.suptitle(f'Averaged from {np.round(tstart, 2)} to {np.round(tend, 2)} viscous times')
-
-        ax = fig.add_subplot(*plots_shape, 1)
-        ax.set_title("stress_uw")
-        pcm = ax.pcolormesh(x, z, stress_uw.T, shading='nearest', cmap="CMRmap")
-        fig.colorbar(pcm, ax=ax)
-        ax.set_xlabel('x')
-        ax.set_ylabel('z')
-        ax.set_aspect(1)
-
-        ax = fig.add_subplot(*plots_shape, 2)
-        ax.set_title("stress_vw")
-        pcm = ax.pcolormesh(x, z, stress_vw.T, shading='nearest', cmap="CMRmap")
-        fig.colorbar(pcm, ax=ax)
-        ax.set_xlabel('x')
-        ax.set_ylabel('z')
-        ax.set_aspect(1)
-
-        ax = fig.add_subplot(*plots_shape, 3)
-        ax.set_title("dz(stress)")
-        ax.plot(stress_uw_dz, z, label='dz(<uw>)')
-        ax.plot(stress_vw_dz, z, label='dz(<vw>)')
-        ax.set_xlabel('dz(stress)')
-        ax.set_ylabel('z')
-        ax.set_xlim((-2.1e-11, 2.1e-11))
-        ax.legend()
-
-        plt.tight_layout()
-        plt.savefig(path.join(data_dir, 'plots', image_name))
-        plt.close()
-
-
-def plot_stresses_post(data_dir, image_name):
-    print(f'Plotting "{image_name}"...')
-    params = utils.read_params(data_dir)
     with h5py.File(path.join(data_dir, 'analysis.h5'), mode='r') as file:
 
         num_dims = len(file['tasks']['u'].dims)
@@ -185,7 +82,11 @@ def plot_stresses_post(data_dir, image_name):
         x = np.array(file['tasks']['u'].dims[1][0])
         z = np.array(file['tasks']['u'].dims[num_dims - 1][0])
 
-        timeframe_mask = np.logical_and(t >= params['duration'] - params['average_interval'], t <= params['duration'])
+        duration = min(params['duration'], t[-1])
+        if duration < params['average_interval']: print('WARNING: averaging interval longer than simulation duration, averaging over entire duration...')
+        timeframe_mask = np.logical_and(t >= duration - params['average_interval'], t <= duration)
+
+        t = t[timeframe_mask]
 
         u = np.squeeze(np.array(file['tasks']['u'])[timeframe_mask])
         v = np.squeeze(np.array(file['tasks']['v'])[timeframe_mask])
@@ -204,8 +105,8 @@ def plot_stresses_post(data_dir, image_name):
         plots_shape = np.array((2, 2))
         plots_size_each = np.array((8, 4))
 
-        tstart = params['duration'] - params['average_interval']
-        tend = params['duration']
+        tstart = duration - params['average_interval']
+        tend = duration
         fig = plt.figure(figsize=np.flip(plots_shape) * plots_size_each)
         fig.suptitle(f'Averaged from {np.round(tstart, 2)} to {np.round(tend, 2)} viscous times')
 
@@ -247,21 +148,25 @@ def plot_heat_flux_z(data_dir, image_name):
         x = np.array(file['tasks']['u'].dims[1][0])
         z = np.array(file['tasks']['u'].dims[num_dims - 1][0])
 
-        timeframe_mask = np.logical_and(t >= params['duration'] - params['average_interval'], t <= params['duration'])
+        duration = min(params['duration'], t[-1])
+        if duration < params['average_interval']: print('WARNING: averaging interval longer than simulation duration, averaging over entire duration...')
+        timeframe_mask = np.logical_and(t >= duration - params['average_interval'], t <= duration)
+
+        t = t[timeframe_mask]
 
         T = np.squeeze(np.array(file['tasks']['T'])[timeframe_mask])
         Tz = np.squeeze(np.array(file['tasks']['Tz'])[timeframe_mask])
         w = np.squeeze(np.array(file['tasks']['w'])[timeframe_mask])
 
-        fluxconv = np.mean(np.mean(T * w, axis=0), axis=0)
-        fluxcond = np.mean(np.mean(-Tz, axis=0), axis=0)
+        fluxconv = np.mean(np.mean(T * w, axis=1), axis=0)
+        fluxcond = np.mean(np.mean(-Tz, axis=1), axis=0)
         fluxtotal = fluxconv + fluxcond
 
         plots_shape = np.array((1, 1))
         plots_size_each = np.array((8, 4))
 
-        tstart = params['duration'] - params['average_interval']
-        tend = params['duration']
+        tstart = duration - params['average_interval']
+        tend = duration
         fig = plt.figure(figsize=np.flip(plots_shape) * plots_size_each)
         fig.suptitle(f'Averaged from {np.round(tstart, 2)} to {np.round(tend, 2)} viscous times')
 
@@ -299,10 +204,48 @@ def plot_energy(data_dir, image_name):
         fig = plt.figure(figsize=np.flip(plots_shape) * plots_size_each)
 
         ax = fig.add_subplot(*plots_shape, 1)
-        ax.set_title("Kiinetic energy as a function of time")
+        ax.set_title("Kinetic energy as a function of time")
         ax.plot(t, KE)
         ax.set_ylabel('Energy')
         ax.set_xlabel('t')
+
+        plt.tight_layout()
+        plt.savefig(path.join(data_dir, 'plots', image_name))
+        plt.close()
+
+
+def plot_momentum(data_dir, image_name):
+    print(f'Plotting "{image_name}"...')
+    params = utils.read_params(data_dir)
+    with h5py.File(path.join(data_dir, 'analysis.h5'), mode='r') as file:
+        num_dims = len(file['tasks']['u'].dims)
+        t = np.array(file['tasks']['u'].dims[0]['sim_time'])
+        x = np.array(file['tasks']['u'].dims[1][0])
+        z = np.array(file['tasks']['u'].dims[num_dims - 1][0])
+
+        u = np.squeeze(np.array(file['tasks']['u']))
+        v = np.squeeze(np.array(file['tasks']['v']))
+        w = np.squeeze(np.array(file['tasks']['w']))
+
+        px = np.sum(u, axis=(1, 2))
+        py = np.sum(v, axis=(1, 2))
+        pz = np.sum(w, axis=(1, 2))
+        p = np.sum(u + v + w, axis=(1, 2))
+
+        plots_shape = np.array((1, 1))
+        plots_size_each = np.array((8, 4))
+
+        fig = plt.figure(figsize=np.flip(plots_shape) * plots_size_each)
+
+        ax = fig.add_subplot(*plots_shape, 1)
+        ax.set_title("Total momentum as a function of time")
+        ax.plot(t, px, label='x-component', lw=1, c='red')
+        ax.plot(t, py, label='y-component', lw=1, c='green')
+        ax.plot(t, pz, label='z-component', lw=1, c='blue')
+        ax.plot(t, p, label='total', ls='--', lw=1, c='black')
+        ax.set_ylabel('Momentum')
+        ax.set_xlabel('t')
+        ax.legend()
 
         plt.tight_layout()
         plt.savefig(path.join(data_dir, 'plots', image_name))
@@ -319,28 +262,42 @@ def plot_momentum_terms(data_dir, image_name):
         x = np.array(file['tasks']['u'].dims[1][0])
         z = np.array(file['tasks']['u'].dims[num_dims - 1][0])
 
-        timeframe_mask = np.logical_and(t >= params['duration'] - params['average_interval'], t <= params['duration'])
+        duration = min(params['duration'], t[-1])
+        if duration < params['average_interval']: print('WARNING: averaging interval longer than simulation duration, averaging over entire duration...')
+        timeframe_mask = np.logical_and(t >= duration - params['average_interval'], t <= duration)
+
+        t = t[timeframe_mask]
 
         u = np.squeeze(np.array(file['tasks']['u'])[timeframe_mask])
         v = np.squeeze(np.array(file['tasks']['v'])[timeframe_mask])
         w = np.squeeze(np.array(file['tasks']['w'])[timeframe_mask])
+        p = np.squeeze(np.array(file['tasks']['p'])[timeframe_mask])
         u_avgt = np.mean(u, axis=0)
         v_avgt = np.mean(v, axis=0)
         w_avgt = np.mean(w, axis=0)
+        p_avgt = np.mean(p, axis=0)
 
         u_dz = np.squeeze(np.array(file['tasks']['u_dz'])[timeframe_mask])
         v_dz = np.squeeze(np.array(file['tasks']['v_dz'])[timeframe_mask])
         w_dz = np.squeeze(np.array(file['tasks']['w_dz'])[timeframe_mask])
+        # u_dz = np.gradient(u, z, axis=-1)
+        # v_dz = np.gradient(v, z, axis=-1)
+        # w_dz = np.gradient(w, z, axis=-1)
         u_dz_avgt = np.mean(u_dz, axis=0)
         v_dz_avgt = np.mean(v_dz, axis=0)
         w_dz_avgt = np.mean(w_dz, axis=0)
 
         u_dz2 = np.squeeze(np.array(file['tasks']['u_dz2'])[timeframe_mask])
         v_dz2 = np.squeeze(np.array(file['tasks']['v_dz2'])[timeframe_mask])
+        # u_dz2 = np.gradient(np.gradient(u, z, axis=-1), z, axis=-1)
+        # v_dz2 = np.gradient(np.gradient(v, z, axis=-1), z, axis=-1)
+        # w_dz2 = np.gradient(np.gradient(w, z, axis=-1), z, axis=-1)
         u_dz2_avgt = np.mean(u_dz2, axis=0)
         v_dz2_avgt = np.mean(v_dz2, axis=0)
 
         # The RS terms
+        # Used chain rule so I don't have to calculate the derivatives with numpy
+        # dz(u'w') == u'*dz(w') + w'*dz(u')
         RS_u = -np.mean(np.mean((u - u_avgt) * (w_dz - w_dz_avgt) + (w - w_avgt) * (u_dz - u_dz_avgt), axis=0), axis=0)
         RS_v = -np.mean(np.mean((v - v_avgt) * (w_dz - w_dz_avgt) + (w - w_avgt) * (v_dz - v_dz_avgt), axis=0), axis=0)
 
@@ -349,20 +306,32 @@ def plot_momentum_terms(data_dir, image_name):
         viscous_u = np.mean(u_dz2_avgt, axis=0)
 
         # The coriolis terms
-        coriolis_v = (np.mean(w_avgt, axis=0) * np.cos(params['Theta']) - np.mean(u_avgt, axis=0) * np.sin(params['Theta'])) / params['Ek']
+        coriolis_v = -np.mean(u_avgt, axis=0) * np.sin(params['Theta']) / params['Ek']
         coriolis_u = np.mean(v_avgt, axis=0) * np.sin(params['Theta']) / params['Ek']
 
         inertial_v = -np.mean(w_avgt * v_dz_avgt, axis=0)
         inertial_u = -np.mean(w_avgt * u_dz_avgt, axis=0)
 
+        # Extra terms that should be zero
+        # RS_u += -np.mean(np.mean(np.gradient((u - u_avgt) * (u - u_avgt), x, axis=1), axis=0), axis=0)
+        # RS_v += -np.mean(np.mean(np.gradient((u - u_avgt) * (v - v_avgt), x, axis=1), axis=0), axis=0)
+        # viscous_u += np.mean(np.gradient(np.gradient(u_avgt, x, axis=0), x, axis=0), axis=0)
+        # viscous_v += np.mean(np.gradient(np.gradient(v_avgt, x, axis=0), x, axis=0), axis=0)
+        # coriolis_v += np.mean(w_avgt, axis=0) * np.cos(params['Theta']) / params['Ek']
+        # inertial_u += np.mean(u_avgt * np.gradient(u_avgt, x, axis=0), axis=0)
+        # inertial_v += np.mean(u_avgt * np.gradient(v_avgt, x, axis=0), axis=0)
+
         total_v = RS_v + viscous_v + coriolis_v + inertial_v
         total_u = RS_u + viscous_u + coriolis_u + inertial_u
 
-        plots_shape = np.array((1, 2))
+        # total_v += np.mean(np.mean(np.gradient(v, t, axis=0), axis=0), axis=0)
+        # total_u += np.mean(np.mean(np.gradient(u, t, axis=0), axis=0), axis=0)
+
+        plots_shape = np.array((2, 1))
         plots_size_each = np.array((8, 4))
 
-        tstart = params['duration'] - params['average_interval']
-        tend = params['duration']
+        tstart = duration - params['average_interval']
+        tend = duration
         fig = plt.figure(figsize=np.flip(plots_shape) * plots_size_each)
         fig.suptitle(f'Averaged from {np.round(tstart, 2)} to {np.round(tend, 2)} viscous times')
 
@@ -391,6 +360,187 @@ def plot_momentum_terms(data_dir, image_name):
         plt.close()
 
 
+# Make animated plot of this through time
+def plot_x_terms(data_dir, image_name):
+    print(f'Plotting "{image_name}"...')
+    params = utils.read_params(data_dir)
+    with h5py.File(path.join(data_dir, 'analysis.h5'), mode='r') as file:
+
+        num_dims = len(file['tasks']['u'].dims)
+        t = np.array(file['tasks']['u'].dims[0]['sim_time'])
+        x = np.array(file['tasks']['u'].dims[1][0])
+        z = np.array(file['tasks']['u'].dims[num_dims - 1][0])
+
+        duration = min(params['duration'], t[-1])
+        if duration < params['average_interval']: print('WARNING: averaging interval longer than simulation duration, averaging over entire duration...')
+        timeframe_mask = np.logical_and(t >= duration - params['average_interval'], t <= duration)
+
+        t = t[timeframe_mask]
+
+        u = np.squeeze(np.array(file['tasks']['u'])[timeframe_mask])
+        w = np.squeeze(np.array(file['tasks']['w'])[timeframe_mask])
+        u_dz = np.squeeze(np.array(file['tasks']['u_dz'])[timeframe_mask])
+        u_dx = np.squeeze(np.array(file['tasks']['u_dx'])[timeframe_mask])
+        u_dt = np.squeeze(np.array(file['tasks']['u_dt'])[timeframe_mask])
+        u_dz2 = np.squeeze(np.array(file['tasks']['u_dz2'])[timeframe_mask])
+
+        temporal = u_dt
+        temporal_np = np.gradient(u, t, axis=0, edge_order=2)
+        viscous = -u_dz2
+        viscous_np = -np.gradient(np.gradient(u, z, axis=2, edge_order=2), z, axis=2, edge_order=2)
+        inertial = w * u_dz + u * u_dx
+        inertial_np = w * np.gradient(u, z, axis=2, edge_order=2) + u * np.gradient(u, x, axis=1, edge_order=2)
+
+        snapshot_time_index = -1
+        snapshot_time = t[snapshot_time_index]
+        temporal_avgx = np.mean(temporal[snapshot_time_index], axis=0)
+        temporal_np_avgx = np.mean(temporal_np[snapshot_time_index], axis=0)
+        viscous_avgx = np.mean(viscous[snapshot_time_index], axis=0)
+        viscous_np_avgx = np.mean(viscous_np[snapshot_time_index], axis=0)
+        inertial_avgx = np.mean(inertial[snapshot_time_index], axis=0)
+        inertial_np_avgx = np.mean(inertial_np[snapshot_time_index], axis=0)
+        total_np_avgx = temporal_np_avgx + viscous_np_avgx + inertial_np_avgx
+        total_avgx = temporal_avgx + viscous_avgx + inertial_avgx
+
+        stress_avgxt = np.mean(np.gradient(np.mean( (u - np.mean(u, keepdims=True)) * (w - np.mean(w, keepdims=True)) , axis=0), z, axis=1, edge_order=2), axis=0)
+        temporal_avgxt = np.mean(np.mean(temporal, axis=1), axis=0)
+        temporal_np_avgxt = np.mean(np.mean(temporal_np, axis=1), axis=0)
+        viscous_avgxt = np.mean(np.mean(viscous, axis=1), axis=0)
+        viscous_np_avgxt = np.mean(np.mean(viscous_np, axis=0), axis=0)
+        total_np_avgxt = temporal_np_avgxt + viscous_np_avgxt + stress_avgxt
+        total_avgxt = temporal_avgxt + viscous_avgxt + stress_avgxt
+
+        plots_shape = np.array((2, 1))
+        plots_size_each = np.array((8, 4))
+
+        tstart = duration - params['average_interval']
+        tend = duration
+        fig = plt.figure(figsize=np.flip(plots_shape) * plots_size_each)
+        fig.suptitle("All the terms of the x-component of the momentum equation\nSolid lines calculated in post, dotted lines are equivalents using\ndedalus (where possible)")
+
+        ax = fig.add_subplot(*plots_shape, 1)
+        ax.set_title("Averaged in x at t={0:.2f}".format(snapshot_time))
+        ax.axvline(0, c='darkgrey', lw=1)
+        ax.plot(temporal_avgx, z, c='green', ls=':', lw=2)
+        ax.plot(temporal_np_avgx, z, label="temporal", c='green', lw=1)
+        ax.plot(viscous_avgx, z, c='blue', ls=':', lw=2)
+        ax.plot(viscous_np_avgx, z, label="viscous", c='blue', lw=1)
+        ax.plot(inertial_avgx, z, c='orange', ls=':', lw=2)
+        ax.plot(inertial_np_avgx, z, label="inertial", c='orange', lw=1)
+        ax.plot(total_avgx, z, c='black', ls=':', lw=2)
+        ax.plot(total_np_avgx, z, label="total", c='black', lw=1)
+        ax.legend()
+        ax.set_ylabel('z')
+
+        ax = fig.add_subplot(*plots_shape, 2)
+        ax.set_title(f'Averaged in x and t from {np.round(tstart, 2)} to {np.round(tend, 2)} viscous times')
+        ax.axvline(0, c='darkgrey', lw=1)
+        ax.plot(stress_avgxt, z, label="stress", c='red', lw=1)
+        ax.plot(temporal_avgxt, z, c='green', ls=':', lw=2)
+        ax.plot(temporal_np_avgxt, z, label="temporal", c='green', lw=1)
+        ax.plot(viscous_avgxt, z, c='blue', ls=':', lw=2)
+        ax.plot(viscous_np_avgxt, z, label="viscous", c='blue', lw=1)
+        ax.plot(total_avgxt, z, c='black', ls=':', lw=2)
+        ax.plot(total_np_avgxt, z, label="total", c='black', lw=1)
+        ax.legend()
+        ax.set_ylabel('z')
+
+        plt.tight_layout()
+        plt.savefig(path.join(data_dir, 'plots', image_name))
+        plt.close()
+
+
+def plot_y_terms(data_dir, image_name):
+    print(f'Plotting "{image_name}"...')
+    params = utils.read_params(data_dir)
+    with h5py.File(path.join(data_dir, 'analysis.h5'), mode='r') as file:
+
+        num_dims = len(file['tasks']['u'].dims)
+        t = np.array(file['tasks']['u'].dims[0]['sim_time'])
+        x = np.array(file['tasks']['u'].dims[1][0])
+        z = np.array(file['tasks']['u'].dims[num_dims - 1][0])
+
+        duration = min(params['duration'], t[-1])
+        if duration < params['average_interval']: print('WARNING: averaging interval longer than simulation duration, averaging over entire duration...')
+        timeframe_mask = np.logical_and(t >= duration - params['average_interval'], t <= duration)
+
+        t = t[timeframe_mask]
+
+        u = np.squeeze(np.array(file['tasks']['u'])[timeframe_mask])
+        v = np.squeeze(np.array(file['tasks']['v'])[timeframe_mask])
+        w = np.squeeze(np.array(file['tasks']['w'])[timeframe_mask])
+        v_dz = np.squeeze(np.array(file['tasks']['v_dz'])[timeframe_mask])
+        v_dx = np.squeeze(np.array(file['tasks']['v_dx'])[timeframe_mask])
+        v_dt = np.squeeze(np.array(file['tasks']['v_dt'])[timeframe_mask])
+        v_dz2 = np.squeeze(np.array(file['tasks']['v_dz2'])[timeframe_mask])
+
+        temporal = v_dt
+        temporal_np = np.gradient(v, t, axis=0, edge_order=2)
+        viscous = -v_dz2
+        viscous_np = -np.gradient(np.gradient(v, z, axis=2, edge_order=2), z, axis=2, edge_order=2)
+        inertial = w * v_dz + u * v_dx
+        inertial_np = w * np.gradient(v, z, axis=2, edge_order=2) + u * np.gradient(v, x, axis=1, edge_order=2)
+
+        snapshot_time_index = -1
+        snapshot_time = t[snapshot_time_index]
+        temporal_avgx = np.mean(temporal[snapshot_time_index], axis=0)
+        temporal_np_avgx = np.mean(temporal_np[snapshot_time_index], axis=0)
+        viscous_avgx = np.mean(viscous[snapshot_time_index], axis=0)
+        viscous_np_avgx = np.mean(viscous_np[snapshot_time_index], axis=0)
+        inertial_avgx = np.mean(inertial[snapshot_time_index], axis=0)
+        inertial_np_avgx = np.mean(inertial_np[snapshot_time_index], axis=0)
+        total_np_avgx = temporal_np_avgx + viscous_np_avgx + inertial_np_avgx
+        total_avgx = temporal_avgx + viscous_avgx + inertial_avgx
+
+        stress_avgxt = np.mean(np.gradient(np.mean( (v - np.mean(v, keepdims=True)) * (w - np.mean(w, keepdims=True)) , axis=0), z, axis=1, edge_order=2), axis=0)
+        temporal_avgxt = np.mean(np.mean(temporal, axis=1), axis=0)
+        temporal_np_avgxt = np.mean(np.mean(temporal_np, axis=1), axis=0)
+        viscous_avgxt = np.mean(np.mean(viscous, axis=1), axis=0)
+        viscous_np_avgxt = np.mean(np.mean(viscous_np, axis=0), axis=0)
+        total_np_avgxt = temporal_np_avgxt + viscous_np_avgxt + stress_avgxt
+        total_avgxt = temporal_avgxt + viscous_avgxt + stress_avgxt
+
+        plots_shape = np.array((2, 1))
+        plots_size_each = np.array((8, 4))
+
+        tstart = duration - params['average_interval']
+        tend = duration
+        fig = plt.figure(figsize=np.flip(plots_shape) * plots_size_each)
+        fig.suptitle("All the terms of the y-component of the momentum equation\nSolid lines calculated in post, dotted lines are equivalents using\ndedalus (where possible)")
+
+        ax = fig.add_subplot(*plots_shape, 1)
+        ax.set_title("Averaged in x at t={0:.2f}".format(snapshot_time))
+        ax.axvline(0, c='darkgrey', lw=1)
+        ax.plot(temporal_avgx, z, c='green', ls=':', lw=2)
+        ax.plot(temporal_np_avgx, z, label="temporal", c='green', lw=1)
+        ax.plot(viscous_avgx, z, c='blue', ls=':', lw=2)
+        ax.plot(viscous_np_avgx, z, label="viscous", c='blue', lw=1)
+        ax.plot(inertial_avgx, z, c='orange', ls=':', lw=2)
+        ax.plot(inertial_np_avgx, z, label="inertial", c='orange', lw=1)
+        ax.plot(total_avgx, z, c='black', ls=':', lw=2)
+        ax.plot(total_np_avgx, z, label="total", c='black', lw=1)
+        ax.legend()
+        ax.set_ylabel('z')
+
+        ax = fig.add_subplot(*plots_shape, 2)
+        ax.set_title(f'Averaged in x and t from {np.round(tstart, 2)} to {np.round(tend, 2)} viscous times')
+        ax.axvline(0, c='darkgrey', lw=1)
+        ax.plot(stress_avgxt, z, label="stress", c='red', lw=1)
+        ax.plot(temporal_avgxt, z, c='green', ls=':', lw=2)
+        ax.plot(temporal_np_avgxt, z, label="temporal", c='green', lw=1)
+        ax.plot(viscous_avgxt, z, c='blue', ls=':', lw=2)
+        ax.plot(viscous_np_avgxt, z, label="viscous", c='blue', lw=1)
+        ax.plot(total_avgxt, z, c='black', ls=':', lw=2)
+        ax.plot(total_np_avgxt, z, label="total", c='black', lw=1)
+        ax.legend()
+        ax.set_ylabel('z')
+
+        plt.tight_layout()
+        plt.savefig(path.join(data_dir, 'plots', image_name))
+        plt.close()
+
+
+# Deprecated - no longer calculating average fields in dedalus
 def plot_filter_comparison(data_dir, image_name):
     print(f'Plotting "{image_name}"...')
     params = utils.read_params(data_dir)
@@ -460,15 +610,57 @@ def plot_filter_comparison(data_dir, image_name):
         plt.close()
 
 
+def plot_temperature(data_dir, image_name):
+    print(f'Plotting "{image_name}"...')
+    params = utils.read_params(data_dir)
+    with h5py.File(path.join(data_dir, 'analysis.h5'), mode='r') as file:
+
+        num_dims = len(file['tasks']['u'].dims)
+        t = np.array(file['tasks']['u'].dims[0]['sim_time'])
+        x = np.array(file['tasks']['u'].dims[1][0])
+        z = np.array(file['tasks']['u'].dims[num_dims - 1][0])
+
+        duration = min(params['duration'], t[-1])
+        if duration < params['average_interval']: print('WARNING: averaging interval longer than simulation duration, averaging over entire duration...')
+        timeframe_mask = np.logical_and(t >= duration - params['average_interval'], t <= duration)
+
+        t = t[timeframe_mask]
+
+        T = np.squeeze(np.array(file['tasks']['T'])[timeframe_mask])
+        T_avgt = np.mean(T, axis=0)
+
+        plots_shape = np.array((1, 1))
+        plots_size_each = np.array((8, 4))
+
+        tstart = duration - params['average_interval']
+        tend = duration
+        fig = plt.figure(figsize=np.flip(plots_shape) * plots_size_each)
+        fig.suptitle(f'Averaged from {np.round(tstart, 2)} to {np.round(tend, 2)} viscous times')
+
+        ax = fig.add_subplot(*plots_shape, 1)
+        ax.set_title("Time averaged T")
+        pcm = ax.pcolormesh(x, z, T_avgt.T, shading='nearest', cmap="CMRmap", label='<T>')
+        fig.colorbar(pcm, ax=ax)
+        ax.set_xlabel('x')
+        ax.set_ylabel('z')
+        ax.set_aspect(1)
+
+        plt.tight_layout()
+        plt.savefig(path.join(data_dir, 'plots', image_name))
+        plt.close()
+
+
 def video(data_dir):
     print(f'Rendering video...')
     params = utils.read_params(data_dir)
     with h5py.File(path.join(data_dir, 'analysis.h5'), mode='r') as file:
         # Load datasets
-        temp = np.squeeze(file['tasks']['T'])
-        t = temp.dims[0]['sim_time']
-        x = temp.dims[1][0]
-        z = temp.dims[2][0]
+        task = file['tasks']['T']
+        num_dims = len(task.dims)
+        temp = np.squeeze(np.array(task))
+        t = task.dims[0]['sim_time']
+        x = task.dims[1][0]
+        z = task.dims[num_dims - 1][0]
 
         params_string = utils.create_params_string(params)
         fig = plt.figure(figsize=utils.calc_plot_size(params), dpi=100)
@@ -499,11 +691,12 @@ if __name__ == "__main__":
         pass
 
     # plot_velocities(data_dir, 'velocities.jpg')
-    plot_velocities_post(data_dir, 'velocities_post.jpg')
     # plot_stresses(data_dir, 'stresses.jpg')
-    plot_stresses_post(data_dir, 'stresses_post.jpg')
-    # plot_filter_comparison(data_dir, 'filter_comparison_stresses.jpg')
-    plot_momentum_terms(data_dir, 'momentum_terms.jpg')
-    plot_heat_flux_z(data_dir, 'heat_flux_z.jpg')
-    plot_energy(data_dir, 'energy.jpg')
+    # plot_momentum_terms(data_dir, 'momentum_terms.jpg')
+    plot_x_terms(data_dir, 'momentum_x_terms.jpg')
+    plot_y_terms(data_dir, 'momentum_y_terms.jpg')
+    # plot_heat_flux_z(data_dir, 'heat_flux_z.jpg')
+    # plot_energy(data_dir, 'energy.jpg')
+    plot_momentum(data_dir, 'momentum.jpg')
+    # plot_temperature(data_dir, 'temperature.jpg')
     # video(data_dir)

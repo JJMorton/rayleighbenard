@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import numpy as np
 from dedalus import public as de
@@ -76,7 +76,7 @@ def run(data_dir):
     # Tz -- partial dT/dz
     # p -- pressure
     # average_fields = ['u_avgt', 'v_avgt', 'w_avgt', 'u_pert', 'v_pert', 'w_pert', 'stress_uw', 'stress_uw_low', 'stress_uw_high', 'stress_vw']
-    problem = de.IVP(domain, variables=['u', 'v', 'w', 'uz', 'vz', 'wz', 'T', 'Tz', 'p'])#, *average_fields])
+    problem = de.IVP(domain, variables=['u', 'v', 'w', 'uz', 'vz', 'wz', 'T', 'Tz', 'p', 'ut', 'vt'])#, *average_fields])
     problem.parameters['Ra'] = params["Ra"]
     problem.parameters['Pr'] = params["Pr"]
     problem.parameters['Ek'] = params["Ek"]
@@ -86,9 +86,9 @@ def run(data_dir):
     # problem.parameters['Tau'] = params["average_interval"] # The time period over which we want to average
 
     # Nondimensionalised Boussinesq equations
-    problem.add_equation("dt(u) + dx(p) - dx(dx(u)) - dz(uz) - v*sin(Theta)/Ek = -u*dx(u) - w*uz")
-    problem.add_equation("dt(v) - dx(dx(v)) - dz(vz) - w*cos(Theta)/Ek + u*sin(Theta)/Ek = -u*dx(v) - w*vz")
-    problem.add_equation("dt(w) + dz(p) - dx(dx(w)) - dz(wz) + v*cos(Theta)/Ek - Ra/Pr * T = -u*dx(w) - w*wz")
+    problem.add_equation("dt(u) + dx(p) - dx(dx(u)) - dz(uz) - v*sin(Theta)/Ek                               = -u*dx(u) - w*uz")
+    problem.add_equation("dt(v)         - dx(dx(v)) - dz(vz) - (w*cos(Theta) + u*sin(Theta))/Ek             = -u*dx(v) - w*vz")
+    problem.add_equation("dt(w) + dz(p) - dx(dx(w)) - dz(wz) + v*cos(Theta)/Ek                   - Ra/Pr * T = -u*dx(w) - w*wz")
 
     # Convection-diffusion equation, governs evolution of temperature field
     problem.add_equation("dt(T) - (dx(dx(T)) + dz(Tz)) / Pr = -u*dx(T) - w*Tz")
@@ -101,9 +101,11 @@ def run(data_dir):
     problem.add_equation("dz(v) - vz = 0")
     problem.add_equation("dz(w) - wz = 0")
     problem.add_equation("dz(T) - Tz = 0")
+    problem.add_equation("dt(u) - ut = 0")
+    problem.add_equation("dt(v) - vt = 0")
 
     # Boundary conditions
-    problem.add_bc("left(Tz) = -4")
+    problem.add_bc("left(Tz) = -1")
     # problem.add_bc("left(T) = 20")
     problem.add_bc("right(T) = 0")
     problem.add_bc("left(u) = 0")
@@ -168,12 +170,18 @@ def run(data_dir):
     analysis.add_task("T * w - Tz", layout='g', name='FluxHeat')
     analysis.add_task("integ(T * w, 'x') / Lx", layout='g', name='FluxHeatConv')
     analysis.add_task("integ(-Tz, 'x') / Lx", layout='g', name='FluxHeatCond')
+    # Derivatives seem to be more accurate when calculated in dedalus, rather than in post
     analysis.add_task("dz(u)", layout='g', name='u_dz')
     analysis.add_task("dz(v)", layout='g', name='v_dz')
     analysis.add_task("dz(w)", layout='g', name='w_dz')
+    analysis.add_task("dx(u)", layout='g', name='u_dx')
+    analysis.add_task("dx(v)", layout='g', name='v_dx')
+    analysis.add_task("dx(w)", layout='g', name='w_dx')
     analysis.add_task("dz(dz(u))", layout='g', name='u_dz2')
     analysis.add_task("dz(dz(v))", layout='g', name='v_dz2')
     analysis.add_task("dz(dz(w))", layout='g', name='w_dz2')
+    analysis.add_task("ut", layout='g', name='u_dt')
+    analysis.add_task("vt", layout='g', name='v_dt')
     
     # # Set interval of infinity so that that handler is not called automatically
     # # We will manually call the handler, so that we can reset the averages to zero straight after
