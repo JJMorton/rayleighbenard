@@ -87,8 +87,8 @@ def run(data_dir):
 
     # Nondimensionalised Boussinesq equations
     problem.add_equation("dt(u) + dx(p) - dx(dx(u)) - dz(uz) - v*sin(Theta)/Ek                               = -u*dx(u) - w*uz")
-    problem.add_equation("dt(v)         - dx(dx(v)) - dz(vz) - (w*cos(Theta) + u*sin(Theta))/Ek             = -u*dx(v) - w*vz")
-    problem.add_equation("dt(w) + dz(p) - dx(dx(w)) - dz(wz) + v*cos(Theta)/Ek                   - Ra/Pr * T = -u*dx(w) - w*wz")
+    problem.add_equation("dt(v)         - dx(dx(v)) - dz(vz) + (u*sin(Theta) - w*cos(Theta))/Ek              = -u*dx(v) - w*vz")
+    problem.add_equation("dt(w) + dz(p) - dx(dx(w)) - dz(wz) - v*cos(Theta)/Ek                   - Ra/Pr * T = -u*dx(w) - w*wz")
 
     # Convection-diffusion equation, governs evolution of temperature field
     problem.add_equation("dt(T) - (dx(dx(T)) + dz(Tz)) / Pr = -u*dx(T) - w*Tz")

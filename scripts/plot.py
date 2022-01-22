@@ -315,18 +315,20 @@ def plot_momentum_x_terms(data_dir, image_name):
         t = t[timeframe_mask]
 
         u = np.squeeze(np.array(file['tasks']['u'])[timeframe_mask])
+        v = np.squeeze(np.array(file['tasks']['v'])[timeframe_mask])
         w = np.squeeze(np.array(file['tasks']['w'])[timeframe_mask])
         u_dz = np.squeeze(np.array(file['tasks']['u_dz'])[timeframe_mask])
         u_dx = np.squeeze(np.array(file['tasks']['u_dx'])[timeframe_mask])
         u_dt = np.squeeze(np.array(file['tasks']['u_dt'])[timeframe_mask])
         u_dz2 = np.squeeze(np.array(file['tasks']['u_dz2'])[timeframe_mask])
 
-        temporal = u_dt
-        temporal_np = np.gradient(u, t, axis=0, edge_order=2)
-        viscous = -u_dz2
-        viscous_np = -np.gradient(np.gradient(u, z, axis=2, edge_order=2), z, axis=2, edge_order=2)
-        inertial = w * u_dz + u * u_dx
-        inertial_np = w * np.gradient(u, z, axis=2, edge_order=2) + u * np.gradient(u, x, axis=1, edge_order=2)
+        temporal = -u_dt
+        temporal_np = -np.gradient(u, t, axis=0, edge_order=2)
+        viscous = u_dz2
+        viscous_np = np.gradient(np.gradient(u, z, axis=2, edge_order=2), z, axis=2, edge_order=2)
+        inertial = -(w * u_dz + u * u_dx)
+        inertial_np = -(w * np.gradient(u, z, axis=2, edge_order=2) + u * np.gradient(u, x, axis=1, edge_order=2))
+        coriolis_np = v * np.sin(params["Theta"]) / params["Ek"]
 
         snapshot_time_index = -1
         snapshot_time = t[snapshot_time_index]
@@ -336,16 +338,18 @@ def plot_momentum_x_terms(data_dir, image_name):
         viscous_np_avgx = np.mean(viscous_np[snapshot_time_index], axis=0)
         inertial_avgx = np.mean(inertial[snapshot_time_index], axis=0)
         inertial_np_avgx = np.mean(inertial_np[snapshot_time_index], axis=0)
-        total_np_avgx = temporal_np_avgx + viscous_np_avgx + inertial_np_avgx
-        total_avgx = temporal_avgx + viscous_avgx + inertial_avgx
+        coriolis_np_avgx = np.mean(coriolis_np[snapshot_time_index], axis=0)
+        total_np_avgx = temporal_np_avgx + viscous_np_avgx + inertial_np_avgx + coriolis_np_avgx
+        total_avgx = temporal_avgx + viscous_avgx + inertial_avgx + coriolis_np_avgx
 
-        stress_avgxt = np.mean(np.gradient(np.mean( (u - np.mean(u, keepdims=True)) * (w - np.mean(w, keepdims=True)) , axis=0), z, axis=1, edge_order=2), axis=0)
+        stress_avgxt = -np.mean(np.gradient(np.mean( (u - np.mean(u, keepdims=True)) * (w - np.mean(w, keepdims=True)) , axis=0), z, axis=1, edge_order=2), axis=0)
         temporal_avgxt = np.mean(np.mean(temporal, axis=1), axis=0)
         temporal_np_avgxt = np.mean(np.mean(temporal_np, axis=1), axis=0)
         viscous_avgxt = np.mean(np.mean(viscous, axis=1), axis=0)
         viscous_np_avgxt = np.mean(np.mean(viscous_np, axis=0), axis=0)
-        total_np_avgxt = temporal_np_avgxt + viscous_np_avgxt + stress_avgxt
-        total_avgxt = temporal_avgxt + viscous_avgxt + stress_avgxt
+        coriolis_np_avgxt = np.mean(np.mean(coriolis_np, axis=0), axis=0)
+        total_np_avgxt = temporal_np_avgxt + viscous_np_avgxt + stress_avgxt + coriolis_np_avgxt
+        total_avgxt = temporal_avgxt + viscous_avgxt + stress_avgxt + coriolis_np_avgxt
 
         plots_shape = np.array((2, 1))
         plots_size_each = np.array((8, 4))
@@ -353,32 +357,34 @@ def plot_momentum_x_terms(data_dir, image_name):
         tstart = duration - params['average_interval']
         tend = duration
         fig = plt.figure(figsize=np.flip(plots_shape) * plots_size_each)
-        fig.suptitle("All the terms of the x-component of the momentum equation\nSolid lines calculated in post, dotted lines are equivalents using\ndedalus (where possible)")
+        fig.suptitle("Solid lines calculated in post, dotted lines are equivalents using\ndedalus (where possible)")
 
         ax = fig.add_subplot(*plots_shape, 1)
-        ax.set_title("Averaged in x at t={0:.2f}".format(snapshot_time))
+        ax.set_title("Terms of the momentum equation, averaged in x at t={0:.2f}".format(snapshot_time))
         ax.axvline(0, c='darkgrey', lw=1)
-        ax.plot(temporal_avgx, z, c='green', ls=':', lw=2)
-        ax.plot(temporal_np_avgx, z, label="temporal", c='green', lw=1)
-        ax.plot(viscous_avgx, z, c='blue', ls=':', lw=2)
-        ax.plot(viscous_np_avgx, z, label="viscous", c='blue', lw=1)
-        ax.plot(inertial_avgx, z, c='orange', ls=':', lw=2)
-        ax.plot(inertial_np_avgx, z, label="inertial", c='orange', lw=1)
-        ax.plot(total_avgx, z, c='black', ls=':', lw=2)
-        ax.plot(total_np_avgx, z, label="total", c='black', lw=1)
+        ax.plot(temporal_avgx, z, c='orange', ls=':', lw=2)
+        ax.plot(temporal_np_avgx, z, label="temporal", c='orange', lw=1)
+        ax.plot(viscous_avgx, z, c='green', ls=':', lw=2)
+        ax.plot(viscous_np_avgx, z, label="viscous", c='green', lw=1)
+        ax.plot(inertial_avgx, z, c='red', ls=':', lw=2)
+        ax.plot(inertial_np_avgx, z, label="inertial", c='red', lw=1)
+        ax.plot(coriolis_np_avgx, z, label="coriolis", c='black', lw=1)
+        ax.plot(total_avgx, z, c='lightgray', ls=':', lw=2)
+        ax.plot(total_np_avgx, z, label="total", c='lightgray', lw=1)
         ax.legend()
         ax.set_ylabel('z')
 
         ax = fig.add_subplot(*plots_shape, 2)
-        ax.set_title(f'Averaged in x and t from {np.round(tstart, 2)} to {np.round(tend, 2)} viscous times')
+        ax.set_title(f'Terms of the time-averaged momentum equation, averaged in x\nAveraged in t from {np.round(tstart, 2)} to {np.round(tend, 2)} viscous times')
         ax.axvline(0, c='darkgrey', lw=1)
+        ax.plot(temporal_avgxt, z, c='orange', ls=':', lw=2)
+        ax.plot(temporal_np_avgxt, z, label="temporal", c='orange', lw=1)
+        ax.plot(viscous_avgxt, z, c='green', ls=':', lw=2)
+        ax.plot(viscous_np_avgxt, z, label="viscous", c='green', lw=1)
         ax.plot(stress_avgxt, z, label="stress", c='red', lw=1)
-        ax.plot(temporal_avgxt, z, c='green', ls=':', lw=2)
-        ax.plot(temporal_np_avgxt, z, label="temporal", c='green', lw=1)
-        ax.plot(viscous_avgxt, z, c='blue', ls=':', lw=2)
-        ax.plot(viscous_np_avgxt, z, label="viscous", c='blue', lw=1)
-        ax.plot(total_avgxt, z, c='black', ls=':', lw=2)
-        ax.plot(total_np_avgxt, z, label="total", c='black', lw=1)
+        ax.plot(coriolis_np_avgxt, z, label="coriolis", c='black', lw=1)
+        ax.plot(total_avgxt, z, c='lightgray', ls=':', lw=2)
+        ax.plot(total_np_avgxt, z, label="total", c='lightgray', lw=1)
         ax.legend()
         ax.set_ylabel('z')
 
@@ -627,13 +633,13 @@ if __name__ == "__main__":
     except FileExistsError:
         pass
 
-    plot_pressure_profile(data_dir, 'pressure.jpg')
+    # plot_pressure_profile(data_dir, 'pressure.jpg')
     plot_velocities(data_dir, 'velocities.jpg')
     plot_stresses(data_dir, 'stresses.jpg')
     plot_momentum_x_terms(data_dir, 'momentum_x_terms.jpg')
     plot_momentum_y_terms(data_dir, 'momentum_y_terms.jpg')
     plot_heat_flux_z(data_dir, 'heat_flux_z.jpg')
     plot_energy(data_dir, 'energy.jpg')
-    plot_momentum(data_dir, 'momentum.jpg')
+    # plot_momentum(data_dir, 'momentum.jpg')
     plot_temperature(data_dir, 'temperature.jpg')
-    # video(data_dir)
+    video(data_dir)
