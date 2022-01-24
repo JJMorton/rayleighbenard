@@ -149,7 +149,7 @@ def run(data_dir):
     t0 = time.time()
     dt = params["timestep"]
     # reset_averages()
-    while solver.proceed:
+    while solver.ok:
         # Step the simulation forwards
         dt = CFL.compute_dt()
         dt = solver.step(dt)
