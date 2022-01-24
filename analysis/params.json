@@ -1,14 +1,18 @@
 {
   "Ra": 2e5,
   "Pr": 1,
-  "Ek":  0.003162278,
+  "Ta": 1e5,
   "Theta": 0.785398163,
-  "resX": 128,
-  "resZ": 64,
+  "resX": 100,
+  "resZ": 50,
   "Lx": 5,
   "Lz": 1,
-  "duration": 5.0,
-  "average_interval": 4.0,
+  "duration": 1.0,
+  "average_interval": 0.25,
   "timestep": 1e-05,
-  "timestep_analysis": 1e-3
+  "timestep_analysis": 1e-3,
+
+  "resY": 100,
+  "Ly": 5,
+  "mesh": [5, 5]
 }

@@ -79,16 +79,16 @@ def run(data_dir):
     problem = de.IVP(domain, variables=['u', 'v', 'w', 'uz', 'vz', 'wz', 'T', 'Tz', 'p', 'ut', 'vt'])#, *average_fields])
     problem.parameters['Ra'] = params["Ra"]
     problem.parameters['Pr'] = params["Pr"]
-    problem.parameters['Ek'] = params["Ek"]
+    problem.parameters['Ta'] = params["Ta"]
     problem.parameters['Theta'] = params["Theta"]
     problem.parameters['Lx'] = params["Lx"]
     problem.parameters['Lz'] = params["Lz"]
     # problem.parameters['Tau'] = params["average_interval"] # The time period over which we want to average
 
     # Nondimensionalised Boussinesq equations
-    problem.add_equation("dt(u) + dx(p) - dx(dx(u)) - dz(uz) - v*sin(Theta)/Ek                               = -u*dx(u) - w*uz")
-    problem.add_equation("dt(v)         - dx(dx(v)) - dz(vz) + (u*sin(Theta) - w*cos(Theta))/Ek              = -u*dx(v) - w*vz")
-    problem.add_equation("dt(w) + dz(p) - dx(dx(w)) - dz(wz) - v*cos(Theta)/Ek                   - Ra/Pr * T = -u*dx(w) - w*wz")
+    problem.add_equation("dt(u) + dx(p) - dx(dx(u)) - dz(uz) - v*sin(Theta) * Ta**0.5                               = -u*dx(u) - w*uz")
+    problem.add_equation("dt(v)         - dx(dx(v)) - dz(vz) + (u*sin(Theta) - w*cos(Theta)) * Ta**0.5              = -u*dx(v) - w*vz")
+    problem.add_equation("dt(w) + dz(p) - dx(dx(w)) - dz(wz) - v*cos(Theta) * Ta**0.5                   - Ra/Pr * T = -u*dx(w) - w*wz")
 
     # Convection-diffusion equation, governs evolution of temperature field
     problem.add_equation("dt(T) - (dx(dx(T)) + dz(Tz)) / Pr = -u*dx(T) - w*Tz")

@@ -327,7 +327,7 @@ def plot_momentum_x_terms(data_dir, image_name):
         viscous_np = -np.gradient(np.gradient(u, z, axis=2, edge_order=2), z, axis=2, edge_order=2)
         inertial = w * u_dz + u * u_dx
         inertial_np = w * np.gradient(u, z, axis=2, edge_order=2) + u * np.gradient(u, x, axis=1, edge_order=2)
-        coriolis = v * np.sin(params["Theta"]) / params["Ek"]
+        coriolis = v * np.sin(params["Theta"]) * params["Ta"]**0.5
 
         snapshot_time_index = -1
         snapshot_time = t[snapshot_time_index]
@@ -421,7 +421,7 @@ def plot_momentum_y_terms(data_dir, image_name):
         inertial = -(w * v_dz + u * v_dx)
         inertial_np = -(w * np.gradient(v, z, axis=2, edge_order=2) + u * np.gradient(v, x, axis=1, edge_order=2))
         # coriolis = (u * np.sin(params["Theta"]) - w * np.cos(params['Theta'])) / params["Ek"]
-        coriolis = u * np.sin(params["Theta"]) / params["Ek"]
+        coriolis = u * np.sin(params["Theta"]) * params["Ta"]**0.5
 
         snapshot_time_index = -1
         snapshot_time = t[snapshot_time_index]
