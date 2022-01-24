@@ -41,7 +41,7 @@ def run(data_dir):
     problem.parameters['Pr'] = params["Pr"]
     problem.parameters['Ta'] = params["Ta"]
     problem.parameters['Theta'] = params["Theta"]
-    problem.parameters['X'] = Ra/Pr
+    problem.parameters['X'] = params["Ra"]/params["Pr"]
 
 
     # Defining d/dz of T, u, v and w for reducing our equations to first order
