@@ -158,7 +158,7 @@ def run(data_dir):
                 logger.info('Lx = {}, Ly = {}, Lz = {}; (Resolution of {},{},{})'.format(params["Lx"], params["Ly"], params["Lz"], params["resX"], params["resY"], params["resZ"]))
                 logger.info('Ra = {}, Pr = {}, Ta = {}, phi = {}'.format(params["Ra"], params["Pr"], params["Ta"], params["Theta"]))
                 logger.info('Files outputted every {}'.format(params["timestep_analysis"]))
-                if rpf.end_sim_time != np.inf:
+                if params["duration"] != np.inf:
                     logger.info('Simulation finishes at sim_time = {}'.format(params["duration"]))
                 else:
                     logger.info('No clear end point defined. Simulation may run perpetually.')
