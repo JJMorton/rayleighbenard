@@ -13,13 +13,13 @@ from scipy import signal
 
 import utils
 
+import logging
+logger = logging.getLogger(__name__)
+
 def run(data_dir):
     
     # Read parameters from file
     params = utils.read_params(data_dir)
-
-    print('Using the following parameters:')
-    print(str(params))
     
     ##################################################
     # Set up domain, fields and equations
@@ -75,12 +75,12 @@ def run(data_dir):
 
     # Build solver
     solver = problem.build_solver(de.timesteppers.RK443)
+    logger.info('Solver built')
     
     ##################################################
     # Initialise fields, either from previous sim or afresh
     
     if path.exists(path.join(data_dir, 'analysis.h5')):
-        print("Analysis file already exists in the provided directory, will continue from where this simulation ended")
         filepath = path.join(data_dir, 'analysis.h5')
         solver.load_state(filepath)
     else:
@@ -106,7 +106,6 @@ def run(data_dir):
     ##################################################
     # Prepare directory for simulation results
     
-    print('Preparing analysis tasks...')
     # if path.exists(path.join(data_dir, 'analysis.h5')):
     #     shutil.move(filepath, path.join(data_dir, 'analysis_previous.h5'))
     analysis = solver.evaluator.add_file_handler(data_dir, sim_dt=params["timestep_analysis"], mode='overwrite')
@@ -137,6 +136,7 @@ def run(data_dir):
     CFL = flow_tools.CFL(solver, initial_dt=params["timestep"], cadence=10, safety=0.5, max_change=1.5, min_change=0.5, max_dt=1e-4, threshold=0.05)
     CFL.add_velocities(('u', 'v', 'w'))
     flow = flow_tools.GlobalFlowProperty(solver, cadence=10)
+    flow.add_property("sqrt(u**2 + v**2 + w**2)/Ra", name='Re')
     
     ##################################################
     # Run the simulation
@@ -144,26 +144,40 @@ def run(data_dir):
     solver.stop_sim_time = params["duration"]
     solver.stop_wall_time = np.inf
     solver.stop_iteration = np.inf
-    print("Simulation start")
-    sim_time_start = solver.sim_time
-    t0 = time.time()
-    dt = params["timestep"]
-    # reset_averages()
-    while solver.ok:
-        # Step the simulation forwards
-        dt = CFL.compute_dt()
-        dt = solver.step(dt)
-        
-        # Log the progress
-        if (solver.iteration - 1) % 10 == 0:
-            print(''.join([' '] * 200), end='\r')
-            print(
-                'Completed iteration {} (t = {:.3E}, dt = {:.3E}, {:.1f}%)'
-                .format(solver.iteration, solver.sim_time, dt, 100 * (solver.sim_time - sim_time_start) / (params["duration"] - sim_time_start)),
-            end='\r', flush=True)
+    try:
+        logger.info('Starting loop')
+        start_time = time.time()
 
-    print(f'Simulation finished in {time.time() - t0} seconds')
+        while solver.ok:
+            dt = CFL.compute_dt()
+            dt = solver.step(dt)
 
+            if (solver.iteration) == 1:
+                # Prints various parameters to terminal upon starting the simulation
+                logger.info('Parameter values imported form run_param_file.py:')
+                logger.info('Lx = {}, Ly = {}, Lz = {}; (Resolution of {},{},{})'.format(params["Lx"], params["Ly"], params["Lz"], params["resX"], params["resY"], params["resZ"]))
+                logger.info('Ra = {}, Pr = {}, Ta = {}, phi = {}'.format(params["Ra"], params["Pr"], params["Ta"], params["Theta"]))
+                logger.info('Files outputted every {}'.format(params["timestep_analysis"]))
+                if rpf.end_sim_time != np.inf:
+                    logger.info('Simulation finishes at sim_time = {}'.format(params["duration"]))
+                else:
+                    logger.info('No clear end point defined. Simulation may run perpetually.')
+
+            if (solver.iteration-1) % 100 == 0:
+                # Prints progress information include maximum Reynolds number every 100 iterations
+                logger.info('Iteration: %i, Time: %e, dt: %e' %(solver.iteration, solver.sim_time, dt))
+                logger.info('Max Re = %f' %flow.max('Re'))  
+
+    except:
+        logger.error('Exception raised, triggering end of main loop.')
+        raise
+    finally:
+        # Prints concluding information upon reaching the end of the simulation.
+        end_time = time.time()
+        logger.info('Iterations: %i' %solver.iteration)
+        logger.info('Sim end time: %f' %solver.sim_time)
+        logger.info('Run time: %.2f sec' %(end_time-start_time))
+        logger.info('Run time: %f cpu-hr' %((end_time-start_time)/60/60*domain.dist.comm_cart.size))
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:
