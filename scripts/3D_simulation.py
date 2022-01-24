@@ -156,7 +156,7 @@ def run(data_dir):
                 # Prints various parameters to terminal upon starting the simulation
                 logger.info('Parameter values imported form run_param_file.py:')
                 logger.info('Lx = {}, Ly = {}, Lz = {}; (Resolution of {},{},{})'.format(params["Lx"], params["Ly"], params["Lz"], params["resX"], params["resY"], params["resZ"]))
-                logger.info('Ra = {}, Pr = {}, Ta = {}, phi = {}'.format(params["Ra"], params["Pr"], params["Ta"], params["Theta"]))
+                logger.info('Ra = {}, Pr = {}, Ta = {}, Theta = {}'.format(params["Ra"], params["Pr"], params["Ta"], params["Theta"]))
                 logger.info('Files outputted every {}'.format(params["timestep_analysis"]))
                 if params["duration"] != np.inf:
                     logger.info('Simulation finishes at sim_time = {}'.format(params["duration"]))
