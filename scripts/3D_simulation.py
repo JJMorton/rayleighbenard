@@ -105,30 +105,43 @@ def run(data_dir):
     
     ##################################################
     # Prepare directory for simulation results
+
+    state = solver.evaluator.add_file_handler(path.join(data_dir, "state"), sim_dt=params["timestep_analysis"], mode='overwrite')
+    state.add_system(solver.state, layout='g')
+    # Derivatives seem to be more accurate when calculated in dedalus, rather than in post
+    state.add_task("dx(u)", layout='g', name='u_dx')
+    state.add_task("dx(v)", layout='g', name='v_dx')
+    state.add_task("dx(w)", layout='g', name='w_dx')
+    state.add_task("dy(u)", layout='g', name='u_dy')
+    state.add_task("dy(v)", layout='g', name='v_dy')
+    state.add_task("dy(w)", layout='g', name='w_dy')
+    state.add_task("dz(u)", layout='g', name='u_dz')
+    state.add_task("dz(v)", layout='g', name='v_dz')
+    state.add_task("dz(w)", layout='g', name='w_dz')
+    state.add_task("dz(dz(u))", layout='g', name='u_dz2')
+    state.add_task("dz(dz(v))", layout='g', name='v_dz2')
+    state.add_task("dz(dz(w))", layout='g', name='w_dz2')
+    state.add_task("ut", layout='g', name='u_dt')
+    state.add_task("vt", layout='g', name='v_dt')
     
-    # if path.exists(path.join(data_dir, 'analysis.h5')):
-    #     shutil.move(filepath, path.join(data_dir, 'analysis_previous.h5'))
-    analysis = solver.evaluator.add_file_handler(data_dir, sim_dt=params["timestep_analysis"], mode='overwrite')
-    analysis.add_system(solver.state, layout='g')
+    analysis = solver.evaluator.add_file_handler(path.join(data_dir, "analysis"), sim_dt=params["timestep_analysis"], mode='overwrite')
+    # Total energy E(t)
     analysis.add_task("integ(integ(integ(0.5 * (u*u + v*v + w*w), 'x'), 'y'), 'z') / (Lx * Ly * Lz)", layout='g', name='E')
-    analysis.add_task("T * w - Tz", layout='g', name='FluxHeat')
+    # Vertical heat fluxes F(z, t)
     analysis.add_task("integ(integ(T * w, 'x'), 'y') / (Lx * Ly)", layout='g', name='FluxHeatConv')
     analysis.add_task("integ(integ(-Tz, 'x'), 'y') / (Lx * Ly)", layout='g', name='FluxHeatCond')
-    # Derivatives seem to be more accurate when calculated in dedalus, rather than in post
-    analysis.add_task("dx(u)", layout='g', name='u_dx')
-    analysis.add_task("dx(v)", layout='g', name='v_dx')
-    analysis.add_task("dx(w)", layout='g', name='w_dx')
-    analysis.add_task("dy(u)", layout='g', name='u_dy')
-    analysis.add_task("dy(v)", layout='g', name='v_dy')
-    analysis.add_task("dy(w)", layout='g', name='w_dy')
-    analysis.add_task("dz(u)", layout='g', name='u_dz')
-    analysis.add_task("dz(v)", layout='g', name='v_dz')
-    analysis.add_task("dz(w)", layout='g', name='w_dz')
-    analysis.add_task("dz(dz(u))", layout='g', name='u_dz2')
-    analysis.add_task("dz(dz(v))", layout='g', name='v_dz2')
-    analysis.add_task("dz(dz(w))", layout='g', name='w_dz2')
-    analysis.add_task("ut", layout='g', name='u_dt')
-    analysis.add_task("vt", layout='g', name='v_dt')
+    # Horizontally averaged velocities U(z, t)
+    # Also the coriolis terms in the averaged momentum equations
+    analysis.add_task("integ(integ(u, 'x'), 'y') / (Lx * Ly)", layout='g', name='MeanU')
+    analysis.add_task("integ(integ(v, 'x'), 'y') / (Lx * Ly)", layout='g', name='MeanV')
+    analysis.add_task("integ(integ(w, 'x'), 'y') / (Lx * Ly)", layout='g', name='MeanW')
+    # Terms of averaged momentum equation q(z, t)
+    analysis.add_task("integ(integ(dz(uz) / (Ta**0.5 * sin(Theta)), 'x'), 'y') / (Lx * Ly)", layout='g', name='ViscousX')
+    analysis.add_task("integ(integ(dz(vz) / (Ta**0.5 * sin(Theta)), 'x'), 'y') / (Lx * Ly)", layout='g', name='ViscousY')
+    analysis.add_task("integ(integ(ut / (Ta**0.5 * sin(Theta)), 'x'), 'y') / (Lx * Ly)", layout='g', name='TemporalX')
+    analysis.add_task("integ(integ(vt / (Ta**0.5 * sin(Theta)), 'x'), 'y') / (Lx * Ly)", layout='g', name='TemporalY')
+    analysis.add_task("integ(integ(v - (dz(uz) + ut) / (Ta**0.5 * sin(Theta)), 'x'), 'y') / (Lx * Ly)", layout='g', name='StressX')
+    analysis.add_task("integ(integ(-u - (dz(vz) + vt) / (Ta**0.5 * sin(Theta)), 'x'), 'y') / (Lx * Ly)", layout='g', name='StressY')
     
     ##################################################
     # Configure CFL to adjust timestep dynamically
