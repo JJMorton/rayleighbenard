@@ -182,25 +182,18 @@ def run(data_dir):
     analysis.add_task("dz(dz(w))", layout='g', name='w_dz2')
     analysis.add_task("ut", layout='g', name='u_dt')
     analysis.add_task("vt", layout='g', name='v_dt')
-    
-    # # Set interval of infinity so that that handler is not called automatically
-    # # We will manually call the handler, so that we can reset the averages to zero straight after
-    # averaged = solver.evaluator.add_file_handler(path.join(data_dir, 'averaged'), sim_dt=np.inf, mode='overwrite')
-    # # Warning: dirty hack
-    # # Make dedalus think this handler has been evaluated at time t=0
-    # # This stops the handlers being evaluated at the start:
-    # averaged.last_wall_div = averaged.last_sim_div = averaged.last_iter_div = 0
-    # averaged.add_task("u_avgt", layout='g', name='u')
-    # averaged.add_task("v_avgt", layout='g', name='v')
-    # averaged.add_task("w_avgt", layout='g', name='w')
-    # averaged.add_task("stress_uw", layout='g', name='stress_uw')
-    # averaged.add_task("stress_vw", layout='g', name='stress_vw')
-    # averaged.add_task("dz(integ(stress_uw, 'x') / Lx)", layout='g', name='stress_uw_avgx_dz')
-    # averaged.add_task("dz(integ(stress_vw, 'x') / Lx)", layout='g', name='stress_vw_avgx_dz')
-    # averaged.add_task("stress_uw_low", layout='g', name='stress_uw_low')
-    # averaged.add_task("stress_uw_high", layout='g', name='stress_uw_high')
-    # averaged.add_task("dz(integ(stress_uw_low, 'x') / Lx)", layout='g', name='stress_uw_low_avgx_dz')
-    # averaged.add_task("dz(integ(stress_uw_high, 'x') / Lx)", layout='g', name='stress_uw_high_avgx_dz')
+    # Horizontally averaged velocities U(z, t)
+    # Also the coriolis terms in the averaged momentum equations
+    analysis.add_task("integ(u, 'x') / Lx", layout='g', name='MeanU')
+    analysis.add_task("integ(v, 'x') / Lx", layout='g', name='MeanV')
+    analysis.add_task("integ(w, 'x') / Lx", layout='g', name='MeanW')
+    # Terms of averaged momentum equation q(z, t)
+    analysis.add_task("-integ(dz(uz) / (Ta**0.5 * sin(Theta)), 'x') / Lx", layout='g', name='ViscousX')
+    analysis.add_task("-integ(dz(vz) / (Ta**0.5 * sin(Theta)), 'x') / Lx", layout='g', name='ViscousY')
+    analysis.add_task("integ(ut / (Ta**0.5 * sin(Theta)), 'x') / Lx", layout='g', name='TemporalX')
+    analysis.add_task("integ(vt / (Ta**0.5 * sin(Theta)), 'x') / Lx", layout='g', name='TemporalY')
+    analysis.add_task("integ(v + (dz(uz) - ut) / (Ta**0.5 * sin(Theta)), 'x') / Lx", layout='g', name='StressX')
+    analysis.add_task("integ(-u + (dz(vz) - vt) / (Ta**0.5 * sin(Theta)), 'x') / Lx", layout='g', name='StressY')
     
     
     ##################################################
