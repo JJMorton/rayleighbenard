@@ -277,7 +277,7 @@ def plot_momentum_y_terms(data_dir, plot_dir):
         viscous_avgx = average_horizontal(viscous)[snapshot_time_index]
         inertial_avgx = average_horizontal(inertial)[snapshot_time_index]
         coriolis_avgx = average_horizontal(coriolis)[snapshot_time_index]
-        total_avgx = temporal_avgx + viscous_avgx + inertial_avgx - coriolis_avgx
+        total_avgx = temporal_avgx + viscous_avgx + inertial_avgx + coriolis_avgx
 
         stress_avgxt = np.mean(np.gradient(average_horizontal( (v - np.mean(v, axis=0, keepdims=True)) * (w - np.mean(w, axis=0, keepdims=True)) ), z, axis=-1, edge_order=2), axis=0)
         temporal_avgxt = np.mean(average_horizontal(temporal), axis=0)
