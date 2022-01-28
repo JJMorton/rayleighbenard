@@ -20,16 +20,19 @@ def get_field(file, fieldname):
     return arr
 
 def get_dims(file, fieldname):
-    """Get the axis scales for (t, x, y, z)"""
+    """Get the dimension scales associated with the field"""
     task = file['tasks'][fieldname]
     num_dims = len(task.dims)
-    t = np.array(task.dims[0]['sim_time'])
-    x = np.array(task.dims[1][0])
-    y = np.array([0])
-    z = np.array(task.dims[num_dims - 1][0])
-    if num_dims == 4:
-        y = np.array(task.dims[2][0])
-    return (t, x, y, z)
+    dims = []
+    # The first dimension is always time, no way to average over it in dedalus
+    dims.append(np.array(task.dims[0]['sim_time']))
+    # Get the other 2 or 3 dimensions
+    for i in range(1, num_dims):
+        dims.append(np.array(task.dims[i][0]))
+    # Insert a dummy zonal axis if the simulation was 2d
+    if num_dims == 3:
+        dims.insert(2, np.array([0]))
+    return tuple(dims)
 
 def average_zonal(arr):
     """Average the field along the zonal direction: (t, x, y, z) --> (t, x, z)"""
@@ -51,9 +54,9 @@ def plot_velocities(data_dir, plot_dir):
     image_name = "velocity.jpg"
     print(f'Plotting "{image_name}"...')
     params = utils.read_params(data_dir)
-    with h5py.File(path.join(data_dir, 'analysis.h5'), mode='r') as file:
+    with h5py.File(path.join(data_dir, 'state.h5'), mode='r') as file:
 
-        t, x, y, z = get_dims(file, 'u')
+        t, x, _, z = get_dims(file, 'u')
 
         duration = min(params['duration'], t[-1])
         if duration < params['average_interval']: print('WARNING: averaging interval longer than simulation duration, averaging over entire duration...')
@@ -110,7 +113,7 @@ def plot_heat_flux_z(data_dir, plot_dir):
     params = utils.read_params(data_dir)
     with h5py.File(path.join(data_dir, 'analysis.h5'), mode='r') as file:
 
-        t, x, y, z = get_dims(file, 'u')
+        t, _, _, z = get_dims(file, 'FluxHeatConv')
 
         duration = min(params['duration'], t[-1])
         if duration < params['average_interval']: print('WARNING: averaging interval longer than simulation duration, averaging over entire duration...')
@@ -145,7 +148,7 @@ def plot_energy(data_dir, plot_dir):
     image_name = "energy.jpg"
     print(f'Plotting "{image_name}"...')
     with h5py.File(path.join(data_dir, 'analysis.h5'), mode='r') as file:
-        t, _, _, _ = get_dims(file, 'u')
+        t, _, _, _ = get_dims(file, 'E')
 
         KE = np.squeeze(get_field(file, 'E'))
 
@@ -169,9 +172,9 @@ def plot_momentum_x_terms(data_dir, plot_dir):
     image_name = "momentum_x_terms.jpg"
     print(f'Plotting "{image_name}"...')
     params = utils.read_params(data_dir)
-    with h5py.File(path.join(data_dir, 'analysis.h5'), mode='r') as file:
+    with h5py.File(path.join(data_dir, 'state.h5'), mode='r') as file:
 
-        t, x, y, z = get_dims(file, 'u')
+        t, x, _, z = get_dims(file, 'u')
 
         duration = min(params['duration'], t[-1])
         if duration < params['average_interval']: print('WARNING: averaging interval longer than simulation duration, averaging over entire duration...')
@@ -261,9 +264,9 @@ def plot_momentum_y_terms(data_dir, plot_dir):
     image_name = "momentum_y_terms.jpg"
     print(f'Plotting "{image_name}"...')
     params = utils.read_params(data_dir)
-    with h5py.File(path.join(data_dir, 'analysis.h5'), mode='r') as file:
+    with h5py.File(path.join(data_dir, 'state.h5'), mode='r') as file:
 
-        t, x, y, z = get_dims(file, 'u')
+        t, x, _, z = get_dims(file, 'u')
 
         duration = min(params['duration'], t[-1])
         if duration < params['average_interval']: print('WARNING: averaging interval longer than simulation duration, averaging over entire duration...')
@@ -352,9 +355,9 @@ def plot_temperature(data_dir, plot_dir):
     image_name = "temperature.jpg"
     print(f'Plotting "{image_name}"...')
     params = utils.read_params(data_dir)
-    with h5py.File(path.join(data_dir, 'analysis.h5'), mode='r') as file:
+    with h5py.File(path.join(data_dir, 'state.h5'), mode='r') as file:
 
-        t, x, y, z = get_dims(file, 'u')
+        t, x, _, z = get_dims(file, 'u')
 
         duration = min(params['duration'], t[-1])
         if duration < params['average_interval']: print('WARNING: averaging interval longer than simulation duration, averaging over entire duration...')
@@ -390,7 +393,7 @@ def plot_averaged_momentum_eq(data_dir, plot_dir):
     params = utils.read_params(data_dir)
     with h5py.File(path.join(data_dir, 'analysis.h5'), mode='r') as file:
 
-        t, x, y, z = get_dims(file, 'u')
+        t, _, _, z = get_dims(file, 'ViscousX')
 
         duration = min(params['duration'], t[-1])
         if duration < params['average_interval']: print('WARNING: averaging interval longer than simulation duration, averaging over entire duration...')
@@ -449,10 +452,10 @@ def plot_averaged_momentum_eq(data_dir, plot_dir):
 def video(data_dir, plot_dir):
     print(f'Rendering video...')
     params = utils.read_params(data_dir)
-    with h5py.File(path.join(data_dir, 'analysis.h5'), mode='r') as file:
+    with h5py.File(path.join(data_dir, 'state.h5'), mode='r') as file:
         # Load datasets
-        temp = average_zonal(get_field(file, 'T'))[timeframe_mask]
-        t, x, y, z = get_dims(file, 'T')
+        temp = average_zonal(get_field(file, 'T'))
+        _, x, _, z = get_dims(file, 'T')
 
         params_string = utils.create_params_string(params)
         fig = plt.figure(figsize=utils.calc_plot_size(params), dpi=100)
