@@ -134,9 +134,9 @@ def run(data_dir):
     ##################################################
     # Initialise fields, either from previous sim or afresh
     
-    if path.exists(path.join(data_dir, 'analysis.h5')):
+    if path.exists(path.join(data_dir, 'state.h5')):
         print("Analysis file already exists in the provided directory, will continue from where this simulation ended")
-        filepath = path.join(data_dir, 'analysis.h5')
+        filepath = path.join(data_dir, 'state.h5')
         solver.load_state(filepath)
     else:
         # We need to create a perturbation in the initial temperature field
@@ -162,8 +162,6 @@ def run(data_dir):
     # Prepare directory for simulation results
     
     print('Preparing analysis tasks...')
-    # if path.exists(path.join(data_dir, 'analysis.h5')):
-    #     shutil.move(filepath, path.join(data_dir, 'analysis_previous.h5'))
     state = solver.evaluator.add_file_handler(path.join(data_dir, "state"), sim_dt=params["timestep_analysis"], mode='overwrite')
     state.add_system(solver.state, layout='g')
     # Derivatives seem to be more accurate when calculated in dedalus, rather than in post

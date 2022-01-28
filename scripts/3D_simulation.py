@@ -80,8 +80,8 @@ def run(data_dir):
     ##################################################
     # Initialise fields, either from previous sim or afresh
     
-    if path.exists(path.join(data_dir, 'analysis.h5')):
-        filepath = path.join(data_dir, 'analysis.h5')
+    if path.exists(path.join(data_dir, 'state.h5')):
+        filepath = path.join(data_dir, 'state.h5')
         solver.load_state(filepath)
     else:
         # We need to create a perturbation in the initial temperature field
