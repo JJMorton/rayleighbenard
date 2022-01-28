@@ -132,6 +132,7 @@ def run(data_dir):
     analysis.add_task("integ(integ(-Tz, 'x'), 'y') / (Lx * Ly)", layout='g', name='FluxHeatCond')
     # Horizontally averaged velocities U(z, t)
     # Also the coriolis terms in the averaged momentum equations
+    # coriolis_x = -v, coriolis_y = u
     analysis.add_task("integ(integ(u, 'x'), 'y') / (Lx * Ly)", layout='g', name='MeanU')
     analysis.add_task("integ(integ(v, 'x'), 'y') / (Lx * Ly)", layout='g', name='MeanV')
     analysis.add_task("integ(integ(w, 'x'), 'y') / (Lx * Ly)", layout='g', name='MeanW')
@@ -140,8 +141,8 @@ def run(data_dir):
     analysis.add_task("integ(integ(dz(vz) / (Ta**0.5 * sin(Theta)), 'x'), 'y') / (Lx * Ly)", layout='g', name='ViscousY')
     analysis.add_task("integ(integ(ut / (Ta**0.5 * sin(Theta)), 'x'), 'y') / (Lx * Ly)", layout='g', name='TemporalX')
     analysis.add_task("integ(integ(vt / (Ta**0.5 * sin(Theta)), 'x'), 'y') / (Lx * Ly)", layout='g', name='TemporalY')
-    analysis.add_task("integ(integ(v - (dz(uz) + ut) / (Ta**0.5 * sin(Theta)), 'x'), 'y') / (Lx * Ly)", layout='g', name='StressX')
-    analysis.add_task("integ(integ(-u - (dz(vz) + vt) / (Ta**0.5 * sin(Theta)), 'x'), 'y') / (Lx * Ly)", layout='g', name='StressY')
+    analysis.add_task("integ(integ(v + (dz(uz) - ut) / (Ta**0.5 * sin(Theta)), 'x'), 'y') / (Lx * Ly)", layout='g', name='StressX')
+    analysis.add_task("integ(integ(-u + (dz(vz) - vt) / (Ta**0.5 * sin(Theta)), 'x'), 'y') / (Lx * Ly)", layout='g', name='StressY')
     
     ##################################################
     # Configure CFL to adjust timestep dynamically
