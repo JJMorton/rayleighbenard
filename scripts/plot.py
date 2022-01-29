@@ -196,12 +196,15 @@ def plot_momentum_x_terms(data_dir, plot_dir):
         u_dt = get_field(file, 'u_dt')[timeframe_mask]
 
         temporal = u_dt
-        viscous = -np.gradient(np.gradient(u, z, axis=-1, edge_order=2), z, axis=-1, edge_order=2)
+        viscous = -np.gradient(np.gradient(u, z, axis=-1, edge_order=2), z, axis=-1, edge_order=2)\
+                 - np.gradient(np.gradient(u, x, axis=1, edge_order=2), x, axis=1, edge_order=2)
         inertial = w * np.gradient(u, z, axis=-1, edge_order=2) + u * np.gradient(u, x, axis=1, edge_order=2)
-        # In 3D there is another inertial term with a d/dy
-        if is3D:
-            inertial += v * np.gradient(u, y, axis=2, edge_order=2)
         coriolis = -v * np.sin(params["Theta"]) * params["Ta"]**0.5
+        stress = np.mean(np.gradient(average_horizontal( (u - np.mean(u, axis=0, keepdims=True)) * (w - np.mean(w, axis=0, keepdims=True)) ), z, axis=-1, edge_order=2), axis=0)
+        # In 3D there are more terms with d/dy
+        if is3D:
+            viscous -= np.gradient(np.gradient(u, y, axis=2, edge_order=2), y, axis=2, edge_order=2)
+            inertial += v * np.gradient(u, y, axis=2, edge_order=2)
 
         snapshot_time_index = -1
         snapshot_time = t[snapshot_time_index]
@@ -211,11 +214,11 @@ def plot_momentum_x_terms(data_dir, plot_dir):
         coriolis_avgx = average_horizontal(coriolis)[snapshot_time_index]
         total_avgx = temporal_avgx + viscous_avgx + inertial_avgx + coriolis_avgx
 
-        stress_avgxt = np.mean(np.gradient(average_horizontal( (u - np.mean(u, axis=0, keepdims=True)) * (w - np.mean(w, axis=0, keepdims=True)) ), z, axis=-1, edge_order=2), axis=0)
+        inertial_avgxt = np.mean(average_horizontal(inertial), axis=0)
         temporal_avgxt = np.mean(average_horizontal(temporal), axis=0)
         viscous_avgxt = np.mean(average_horizontal(viscous), axis=0)
         coriolis_avgxt = np.mean(average_horizontal(coriolis), axis=0)
-        total_avgxt = temporal_avgxt + viscous_avgxt + stress_avgxt + coriolis_avgxt
+        total_avgxt = temporal_avgxt + viscous_avgxt + inertial_avgxt + coriolis_avgxt
 
         plots_shape = np.array((2, 1))
         plots_size_each = np.array((8, 4))
@@ -236,12 +239,13 @@ def plot_momentum_x_terms(data_dir, plot_dir):
         ax.set_ylabel('z')
 
         ax = fig.add_subplot(*plots_shape, 2)
-        ax.set_title(f'Terms of the time-averaged momentum equation (x component), averaged in x\nAveraged in t from {np.round(tstart, 2)} to {np.round(tend, 2)} viscous times')
+        ax.set_title(f'Terms of the momentum equation (x component), averaged in x\nAveraged in t from {np.round(tstart, 2)} to {np.round(tend, 2)} viscous times')
         ax.plot(temporal_avgxt, z, label="temporal", c='orange', lw=1)
         ax.plot(viscous_avgxt, z, label="viscous", c='green', lw=1)
-        ax.plot(stress_avgxt, z, label="stress", c='red', lw=1)
+        ax.plot(inertial_avgxt, z, label="inertial", c='red', lw=1)
         ax.plot(-coriolis_avgxt, z, label="coriolis", c='black', lw=1)
-        ax.plot(total_avgxt, z, label="total", c='lightgray', lw=1)
+        ax.plot(total_avgxt, z, label="total of above", c='lightgray', lw=1)
+        ax.plot(stress, z, label="stress d/dz <uw>", c='purple', ls='--', lw=1)
         ax.legend()
         ax.set_ylabel('z')
 
@@ -272,11 +276,15 @@ def plot_momentum_y_terms(data_dir, plot_dir):
         v_dt = get_field(file, 'v_dt')[timeframe_mask]
 
         temporal = v_dt
-        viscous = -np.gradient(np.gradient(v, z, axis=-1, edge_order=2), z, axis=-1, edge_order=2)
+        viscous = -np.gradient(np.gradient(v, z, axis=-1, edge_order=2), z, axis=-1, edge_order=2)\
+                 - np.gradient(np.gradient(v, x, axis=1, edge_order=2), x, axis=1, edge_order=2)
         inertial = w * np.gradient(v, z, axis=-1, edge_order=2) + u * np.gradient(v, x, axis=1, edge_order=2)
+        coriolis = u * np.sin(params["Theta"]) * params["Ta"]**0.5 - w * np.cos(params["Theta"]) * params["Ta"]**0.5
+        stress = np.mean(np.gradient(average_horizontal( (v - np.mean(v, axis=0, keepdims=True)) * (w - np.mean(w, axis=0, keepdims=True)) ), z, axis=-1, edge_order=2), axis=0)
+        # In 3D there are more terms with d/dy
         if is3D:
+            viscous -= np.gradient(np.gradient(v, y, axis=2, edge_order=2), y, axis=2, edge_order=2)
             inertial += v * np.gradient(v, y, axis=2, edge_order=2)
-        coriolis = u * np.sin(params["Theta"]) * params["Ta"]**0.5
 
         snapshot_time_index = -1
         snapshot_time = t[snapshot_time_index]
@@ -286,11 +294,11 @@ def plot_momentum_y_terms(data_dir, plot_dir):
         coriolis_avgx = average_horizontal(coriolis)[snapshot_time_index]
         total_avgx = temporal_avgx + viscous_avgx + inertial_avgx + coriolis_avgx
 
-        stress_avgxt = np.mean(np.gradient(average_horizontal( (v - np.mean(v, axis=0, keepdims=True)) * (w - np.mean(w, axis=0, keepdims=True)) ), z, axis=-1, edge_order=2), axis=0)
+        inertial_avgxt = np.mean(average_horizontal(inertial), axis=0)
         temporal_avgxt = np.mean(average_horizontal(temporal), axis=0)
         viscous_avgxt = np.mean(average_horizontal(viscous), axis=0)
         coriolis_avgxt = np.mean(average_horizontal(coriolis), axis=0)
-        total_avgxt = temporal_avgxt + viscous_avgxt + stress_avgxt + coriolis_avgxt
+        total_avgxt = temporal_avgxt + viscous_avgxt + inertial_avgxt + coriolis_avgxt
 
         plots_shape = np.array((2, 1))
         plots_size_each = np.array((8, 4))
@@ -315,12 +323,13 @@ def plot_momentum_y_terms(data_dir, plot_dir):
         ax.set_ylabel('z')
 
         ax = fig.add_subplot(*plots_shape, 2)
-        ax.set_title(f'Terms of the time-averaged momentum equation (y component), averaged in x\nAveraged in t from {np.round(tstart, 2)} to {np.round(tend, 2)} viscous times')
+        ax.set_title(f'Terms of the momentum equation (y component), averaged in x\nAveraged in t from {np.round(tstart, 2)} to {np.round(tend, 2)} viscous times')
         ax.plot(-temporal_avgxt, z, label="temporal", c='orange', lw=1)
         ax.plot(-viscous_avgxt, z, label="viscous", c='green', lw=1)
-        ax.plot(-stress_avgxt, z, label="stress", c='red', lw=1)
+        ax.plot(-inertial_avgxt, z, label="inertial", c='red', lw=1)
         ax.plot(coriolis_avgxt, z, label="coriolis", c='black', lw=1)
-        ax.plot(-total_avgxt, z, label="total", c='lightgray', lw=1)
+        ax.plot(-total_avgxt, z, label="total of above", c='lightgray', lw=1)
+        ax.plot(-stress, z, label="stress d/dz <vw>", c='purple', ls='--', lw=1)
         ax.legend()
         ax.set_ylabel('z')
 
