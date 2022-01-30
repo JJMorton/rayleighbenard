@@ -170,7 +170,7 @@ def run(data_dir):
 
             if (solver.iteration) == 1:
                 # Prints various parameters to terminal upon starting the simulation
-                logger.info('Parameter values imported form run_param_file.py:')
+                logger.info('Parameter values imported from params.json:')
                 logger.info('Lx = {}, Ly = {}, Lz = {}; (Resolution of {},{},{})'.format(params["Lx"], params["Ly"], params["Lz"], params["resX"], params["resY"], params["resZ"]))
                 logger.info('Ra = {}, Pr = {}, Ta = {}, Theta = {}'.format(params["Ra"], params["Pr"], params["Ta"], params["Theta"]))
                 logger.info('Files outputted every {}'.format(params["timestep_analysis"]))
