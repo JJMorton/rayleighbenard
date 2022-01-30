@@ -57,7 +57,6 @@ def plot_velocities(data_dir, plot_dir):
     with h5py.File(path.join(data_dir, 'state.h5'), mode='r') as file:
 
         t, x, y, z = get_dims(file, 'u')
-        is3D = y is not None
 
         duration = min(params['duration'], t[-1])
         if duration < params['average_interval']: print('WARNING: averaging interval longer than simulation duration, averaging over entire duration...')
@@ -66,15 +65,9 @@ def plot_velocities(data_dir, plot_dir):
 
         t = t[timeframe_mask]
 
-        u = get_field(file, 'u')[timeframe_mask]
-        v = get_field(file, 'v')[timeframe_mask]
-        w = get_field(file, 'w')[timeframe_mask]
-        if is3D:
-            # In 3D, take slice at y = Ly/2
-            u, v, w = [ vel[:, :, int(len(y) / 2), :] for vel in (u, v, w) ]
-        else:
-            # In 2D, remove y dimension
-            u, v, w = [ average_zonal(vel) for vel in (u, v, w) ]
+        u = average_zonal(get_field(file, 'u')[timeframe_mask])
+        v = average_zonal(get_field(file, 'v')[timeframe_mask])
+        w = average_zonal(get_field(file, 'w')[timeframe_mask])
 
         u_avgt = np.mean(u, axis=0)
         v_avgt = np.mean(v, axis=0)
@@ -83,7 +76,7 @@ def plot_velocities(data_dir, plot_dir):
         plots_shape = np.array((2, 2))
         plots_size_each = np.array((8, 4))
         fig = plt.figure(figsize=np.flip(plots_shape) * plots_size_each)
-        fig.suptitle(f'Cross-section at y=Ly/2, averaged from {np.round(tstart, 2)} to {np.round(duration, 2)} viscous times')
+        fig.suptitle(f'Averaged zonally and in time from {np.round(tstart, 2)} to {np.round(duration, 2)} viscous times')
 
         ax = fig.add_subplot(*plots_shape, 1)
         ax.set_title("Time averaged u")
@@ -355,22 +348,29 @@ def plot_temperature(data_dir, plot_dir):
         t = t[timeframe_mask]
 
         T = get_field(file, 'T')[timeframe_mask]
-        if is3D:
-            # In 3D, take a cross section of the box at y = Ly/2
-            T = T[:, :, int(len(y) / 2), :]
-        else:
-            # In 2D, just make sure the y dimension is removed
-            T = average_zonal(T)
-        T_avgt = np.mean(T, axis=0)
+        T_avg = np.mean(average_zonal(T), axis=0)
 
-        plots_shape = np.array((1, 1))
+        plots_shape = np.array((2, 1))
         plots_size_each = np.array((8, 4))
         fig = plt.figure(figsize=np.flip(plots_shape) * plots_size_each)
         fig.suptitle(f'Cross-section at y=Ly/2, averaged from {np.round(tstart, 2)} to {np.round(duration, 2)} viscous times')
 
         ax = fig.add_subplot(*plots_shape, 1)
-        ax.set_title("Time averaged T")
-        pcm = ax.pcolormesh(x, z, T_avgt.T, shading='nearest', cmap="CMRmap", label='<T>')
+        ax.set_title("Time & zonally averaged T")
+        pcm = ax.pcolormesh(x, z, T_avg.T, shading='nearest', cmap="CMRmap", label='<T>')
+        fig.colorbar(pcm, ax=ax)
+        ax.set_xlabel('x')
+        ax.set_ylabel('z')
+        ax.set_aspect(1)
+
+        ax = fig.add_subplot(*plots_shape, 2)
+        if is3D:
+            ax.set_title(f'Snapshot of T at y=Ly/2 and t={duration}')
+            T_snapshot = T[-1, :, int(len(y) / 2), :]
+        else:
+            ax.set_title(f'Snapshot of T at t={duration}')
+            T_snapshot = T[-1, :, 0, :]
+        pcm = ax.pcolormesh(x, z, T_snapshot.T, shading='nearest', cmap="CMRmap", label='T')
         fig.colorbar(pcm, ax=ax)
         ax.set_xlabel('x')
         ax.set_ylabel('z')
