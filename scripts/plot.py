@@ -107,6 +107,56 @@ def plot_velocities(data_dir, plot_dir):
         plt.close()
 
 
+def plot_temperature(data_dir, plot_dir):
+    image_name = "temperature.jpg"
+    print(f'Plotting "{image_name}"...')
+    params = utils.read_params(data_dir)
+    with h5py.File(path.join(data_dir, 'state.h5'), mode='r') as file:
+
+        t, x, y, z = get_dims(file, 'T')
+        is3D = y is not None
+
+        duration = min(params['duration'], t[-1])
+        if duration < params['average_interval']: print('WARNING: averaging interval longer than simulation duration, averaging over entire duration...')
+        tstart = duration - params['average_interval']
+        timeframe_mask = np.logical_and(t >= tstart, t <= duration)
+
+        t = t[timeframe_mask]
+
+        T = get_field(file, 'T')[timeframe_mask]
+        T_avg = np.mean(average_zonal(T), axis=0)
+
+        plots_shape = np.array((2, 1))
+        plots_size_each = np.array((8, 4))
+        fig = plt.figure(figsize=np.flip(plots_shape) * plots_size_each)
+        fig.suptitle(f'Cross-section at y=Ly/2, averaged from {np.round(tstart, 2)} to {np.round(duration, 2)} viscous times')
+
+        ax = fig.add_subplot(*plots_shape, 1)
+        ax.set_title("Time & zonally averaged T")
+        pcm = ax.pcolormesh(x, z, T_avg.T, shading='nearest', cmap="CMRmap", label='<T>')
+        fig.colorbar(pcm, ax=ax)
+        ax.set_xlabel('x')
+        ax.set_ylabel('z')
+        ax.set_aspect(1)
+
+        ax = fig.add_subplot(*plots_shape, 2)
+        if is3D:
+            ax.set_title(f'Snapshot of T at y=Ly/2 and t={duration}')
+            T_snapshot = T[-1, :, int(len(y) / 2), :]
+        else:
+            ax.set_title(f'Snapshot of T at t={duration}')
+            T_snapshot = T[-1, :, 0, :]
+        pcm = ax.pcolormesh(x, z, T_snapshot.T, shading='nearest', cmap="CMRmap", label='T')
+        fig.colorbar(pcm, ax=ax)
+        ax.set_xlabel('x')
+        ax.set_ylabel('z')
+        ax.set_aspect(1)
+
+        plt.tight_layout()
+        plt.savefig(path.join(plot_dir, image_name))
+        plt.close()
+
+
 def plot_heat_flux_z(data_dir, plot_dir):
     image_name = "heat_flux_z.jpg"
     print(f'Plotting "{image_name}"...')
@@ -167,15 +217,13 @@ def plot_energy(data_dir, plot_dir):
         plt.close()
 
 
-# Probably not very useful now, just left here for reference
-def plot_momentum_x_terms(data_dir, plot_dir):
-    image_name = "momentum_x_terms.jpg"
+def plot_momentum_terms_post(data_dir, plot_dir):
+    image_name = "momentum_terms_post.jpg"
     print(f'Plotting "{image_name}"...')
     params = utils.read_params(data_dir)
     with h5py.File(path.join(data_dir, 'state.h5'), mode='r') as file:
 
-        t, x, y, z = get_dims(file, 'u')
-        is3D = y is not None
+        t, x, _, z = get_dims(file, 'u')
 
         duration = min(params['duration'], t[-1])
         if duration < params['average_interval']: print('WARNING: averaging interval longer than simulation duration, averaging over entire duration...')
@@ -183,146 +231,74 @@ def plot_momentum_x_terms(data_dir, plot_dir):
 
         t = t[timeframe_mask]
 
+        print("  Reading file...")
         u = get_field(file, 'u')[timeframe_mask]
         v = get_field(file, 'v')[timeframe_mask]
         w = get_field(file, 'w')[timeframe_mask]
         u_dt = get_field(file, 'u_dt')[timeframe_mask]
-
-        temporal = u_dt
-        viscous = -np.gradient(np.gradient(u, z, axis=-1, edge_order=2), z, axis=-1, edge_order=2)\
-                 - np.gradient(np.gradient(u, x, axis=1, edge_order=2), x, axis=1, edge_order=2)
-        inertial = w * np.gradient(u, z, axis=-1, edge_order=2) + u * np.gradient(u, x, axis=1, edge_order=2)
-        coriolis = -v * np.sin(params["Theta"]) * params["Ta"]**0.5
-        stress = np.mean(np.gradient(average_horizontal( (u - np.mean(u, axis=0, keepdims=True)) * (w - np.mean(w, axis=0, keepdims=True)) ), z, axis=-1, edge_order=2), axis=0)
-        # In 3D there are more terms with d/dy
-        if is3D:
-            viscous -= np.gradient(np.gradient(u, y, axis=2, edge_order=2), y, axis=2, edge_order=2)
-            inertial += v * np.gradient(u, y, axis=2, edge_order=2)
-
-        snapshot_time_index = -1
-        snapshot_time = t[snapshot_time_index]
-        temporal_avgx = average_horizontal(temporal)[snapshot_time_index]
-        viscous_avgx = average_horizontal(viscous)[snapshot_time_index]
-        inertial_avgx = average_horizontal(inertial)[snapshot_time_index]
-        coriolis_avgx = average_horizontal(coriolis)[snapshot_time_index]
-        total_avgx = temporal_avgx + viscous_avgx + inertial_avgx + coriolis_avgx
-
-        inertial_avgxt = np.mean(average_horizontal(inertial), axis=0)
-        temporal_avgxt = np.mean(average_horizontal(temporal), axis=0)
-        viscous_avgxt = np.mean(average_horizontal(viscous), axis=0)
-        coriolis_avgxt = np.mean(average_horizontal(coriolis), axis=0)
-        total_avgxt = temporal_avgxt + viscous_avgxt + inertial_avgxt + coriolis_avgxt
-
-        plots_shape = np.array((2, 1))
-        plots_size_each = np.array((8, 4))
-
-        tstart = duration - params['average_interval']
-        tend = duration
-        fig = plt.figure(figsize=np.flip(plots_shape) * plots_size_each)
-        fig.suptitle("All terms calculated in post-processing, except time derivative of velocity")
-
-        ax = fig.add_subplot(*plots_shape, 1)
-        ax.set_title("Terms of the momentum equation (x component), averaged in x at t={0:.2f}".format(snapshot_time))
-        ax.plot(temporal_avgx, z, label="temporal", c='orange', lw=1)
-        ax.plot(viscous_avgx, z, label="viscous", c='green', lw=1)
-        ax.plot(inertial_avgx, z, label="inertial", c='red', lw=1)
-        ax.plot(-coriolis_avgx, z, label="coriolis", c='black', lw=1)
-        ax.plot(total_avgx, z, label="total", c='lightgray', lw=1)
-        ax.legend()
-        ax.set_ylabel('z')
-
-        ax = fig.add_subplot(*plots_shape, 2)
-        ax.set_title(f'Terms of the momentum equation (x component), averaged in x\nAveraged in t from {np.round(tstart, 2)} to {np.round(tend, 2)} viscous times')
-        ax.plot(temporal_avgxt, z, label="temporal", c='orange', lw=1)
-        ax.plot(viscous_avgxt, z, label="viscous", c='green', lw=1)
-        ax.plot(inertial_avgxt, z, label="inertial", c='red', lw=1)
-        ax.plot(-coriolis_avgxt, z, label="coriolis", c='black', lw=1)
-        ax.plot(total_avgxt, z, label="total of above", c='lightgray', lw=1)
-        ax.plot(stress, z, label="stress d/dz <uw>", c='purple', ls='--', lw=1)
-        ax.legend()
-        ax.set_ylabel('z')
-
-        plt.tight_layout()
-        plt.savefig(path.join(plot_dir, image_name))
-        plt.close()
-
-
-# Probably not very useful now, just left here for reference
-def plot_momentum_y_terms(data_dir, plot_dir):
-    image_name = "momentum_y_terms.jpg"
-    print(f'Plotting "{image_name}"...')
-    params = utils.read_params(data_dir)
-    with h5py.File(path.join(data_dir, 'state.h5'), mode='r') as file:
-
-        t, x, y, z = get_dims(file, 'u')
-        is3D = y is not None
-
-        duration = min(params['duration'], t[-1])
-        if duration < params['average_interval']: print('WARNING: averaging interval longer than simulation duration, averaging over entire duration...')
-        timeframe_mask = np.logical_and(t >= duration - params['average_interval'], t <= duration)
-
-        t = t[timeframe_mask]
-
-        u = get_field(file, 'u')[timeframe_mask]
-        v = get_field(file, 'v')[timeframe_mask]
-        w = get_field(file, 'w')[timeframe_mask]
         v_dt = get_field(file, 'v_dt')[timeframe_mask]
 
-        temporal = v_dt
-        viscous = -np.gradient(np.gradient(v, z, axis=-1, edge_order=2), z, axis=-1, edge_order=2)\
-                 - np.gradient(np.gradient(v, x, axis=1, edge_order=2), x, axis=1, edge_order=2)
-        inertial = w * np.gradient(v, z, axis=-1, edge_order=2) + u * np.gradient(v, x, axis=1, edge_order=2)
-        coriolis = u * np.sin(params["Theta"]) * params["Ta"]**0.5 - w * np.cos(params["Theta"]) * params["Ta"]**0.5
-        stress = np.mean(np.gradient(average_horizontal( (v - np.mean(v, axis=0, keepdims=True)) * (w - np.mean(w, axis=0, keepdims=True)) ), z, axis=-1, edge_order=2), axis=0)
-        # In 3D there are more terms with d/dy
-        if is3D:
-            viscous -= np.gradient(np.gradient(v, y, axis=2, edge_order=2), y, axis=2, edge_order=2)
-            inertial += v * np.gradient(v, y, axis=2, edge_order=2)
+        # The x component terms
+        print("  Calculating x terms...")
+        temporal_x = u_dt
+        viscous_x = -np.gradient(np.gradient(u, z, axis=-1, edge_order=2), z, axis=-1, edge_order=2)
+        coriolis_x = -v * np.sin(params["Theta"]) * params["Ta"]**0.5
+        stress_x = np.mean(np.gradient(average_horizontal( (u - np.mean(u, axis=0, keepdims=True)) * (w - np.mean(w, axis=0, keepdims=True)) ), z, axis=-1, edge_order=2), axis=0)
 
-        snapshot_time_index = -1
-        snapshot_time = t[snapshot_time_index]
-        temporal_avgx = average_horizontal(temporal)[snapshot_time_index]
-        viscous_avgx = average_horizontal(viscous)[snapshot_time_index]
-        inertial_avgx = average_horizontal(inertial)[snapshot_time_index]
-        coriolis_avgx = average_horizontal(coriolis)[snapshot_time_index]
-        total_avgx = temporal_avgx + viscous_avgx + inertial_avgx + coriolis_avgx
+        # The y component terms
+        print("  Calculating y terms...")
+        temporal_y = v_dt
+        viscous_y = -np.gradient(np.gradient(v, z, axis=-1, edge_order=2), z, axis=-1, edge_order=2)
+        coriolis_y = u * np.sin(params["Theta"]) * params["Ta"]**0.5# - w * np.cos(params["Theta"]) * params["Ta"]**0.5
+        stress_y = np.mean(np.gradient(average_horizontal( (v - np.mean(v, axis=0, keepdims=True)) * (w - np.mean(w, axis=0, keepdims=True)) ), z, axis=-1, edge_order=2), axis=0)
 
-        inertial_avgxt = np.mean(average_horizontal(inertial), axis=0)
-        temporal_avgxt = np.mean(average_horizontal(temporal), axis=0)
-        viscous_avgxt = np.mean(average_horizontal(viscous), axis=0)
-        coriolis_avgxt = np.mean(average_horizontal(coriolis), axis=0)
-        total_avgxt = temporal_avgxt + viscous_avgxt + inertial_avgxt + coriolis_avgxt
+        # Averaging in time and horizontally in space...
+        print("  Averaging...")
+        # ... for x
+        temporal_x_avg = np.mean(average_horizontal(temporal_x), axis=0)
+        viscous_x_avg = np.mean(average_horizontal(viscous_x), axis=0)
+        coriolis_x_avg = np.mean(average_horizontal(coriolis_x), axis=0)
+        total_x_avg = temporal_x_avg + viscous_x_avg + stress_x + coriolis_x_avg
 
+        # ... and for y
+        temporal_y_avg = np.mean(average_horizontal(temporal_y), axis=0)
+        viscous_y_avg = np.mean(average_horizontal(viscous_y), axis=0)
+        coriolis_y_avg = np.mean(average_horizontal(coriolis_y), axis=0)
+        total_y_avg = temporal_y_avg + viscous_y_avg + stress_y + coriolis_y_avg
+
+        # Plot everything on two plots
+        print("  Plotting...")
         plots_shape = np.array((2, 1))
         plots_size_each = np.array((8, 4))
 
         tstart = duration - params['average_interval']
         tend = duration
         fig = plt.figure(figsize=np.flip(plots_shape) * plots_size_each)
-        fig.suptitle("All terms calculated in post-processing, except time derivative of velocity")
+        fig.suptitle(
+            "Terms of the averaged momentum equation\n"
+            f"Averaged in t from {np.round(tstart, 2)} to {np.round(tend, 2)} viscous times\n"
+            "All terms calculated in post-processing, except time derivative of velocity"
+        )
 
-        # Plotting in the same format as Currie & Tobias (2016) did.
-        # This means flipping the coriolis term w.r.t. the other terms, as
-        # they plotted the terms in an equation with the coriolis term
-        # on the L.H.S. and everything else on the R.H.S.
         ax = fig.add_subplot(*plots_shape, 1)
-        ax.set_title("Terms of the momentum equation (y component), averaged in x at t={0:.2f}".format(snapshot_time))
-        ax.plot(-temporal_avgx, z, label="temporal", c='orange', lw=1)
-        ax.plot(-viscous_avgx, z, label="viscous", c='green', lw=1)
-        ax.plot(-inertial_avgx, z, label="inertial", c='red', lw=1)
-        ax.plot(coriolis_avgx, z, label="coriolis", c='black', lw=1)
-        ax.plot(-total_avgx, z, label="total", c='lightgray', lw=1)
+        ax.set_title("x component")
+        ax.axvline(0, lw=1, c='darkgray')
+        ax.plot(temporal_x_avg, z, label="Temporal", c='orange')
+        ax.plot(viscous_x_avg, z, label="Viscous", c='green')
+        ax.plot(-coriolis_x_avg, z, label="Coriolis", c='black')
+        ax.plot(stress_x, z, label="Stress d/dz <uw>", c='red')
+        ax.plot(total_x_avg, z, label="Total of above", c='darkgray', ls=':')
         ax.legend()
         ax.set_ylabel('z')
 
         ax = fig.add_subplot(*plots_shape, 2)
-        ax.set_title(f'Terms of the momentum equation (y component), averaged in x\nAveraged in t from {np.round(tstart, 2)} to {np.round(tend, 2)} viscous times')
-        ax.plot(-temporal_avgxt, z, label="temporal", c='orange', lw=1)
-        ax.plot(-viscous_avgxt, z, label="viscous", c='green', lw=1)
-        ax.plot(-inertial_avgxt, z, label="inertial", c='red', lw=1)
-        ax.plot(coriolis_avgxt, z, label="coriolis", c='black', lw=1)
-        ax.plot(-total_avgxt, z, label="total of above", c='lightgray', lw=1)
-        ax.plot(-stress, z, label="stress d/dz <vw>", c='purple', ls='--', lw=1)
+        ax.set_title("y component")
+        ax.axvline(0, lw=1, c='darkgray')
+        ax.plot(-temporal_y_avg, z, label="Temporal", c='orange')
+        ax.plot(-viscous_y_avg, z, label="Viscous", c='green')
+        ax.plot(coriolis_y_avg, z, label="Coriolis", c='black')
+        ax.plot(-stress_y, z, label="Stress d/dz <vw>", c='red')
+        ax.plot(-total_y_avg, z, label="Total of above", c='darkgray', ls=':')
         ax.legend()
         ax.set_ylabel('z')
 
@@ -331,58 +307,8 @@ def plot_momentum_y_terms(data_dir, plot_dir):
         plt.close()
 
 
-def plot_temperature(data_dir, plot_dir):
-    image_name = "temperature.jpg"
-    print(f'Plotting "{image_name}"...')
-    params = utils.read_params(data_dir)
-    with h5py.File(path.join(data_dir, 'state.h5'), mode='r') as file:
-
-        t, x, y, z = get_dims(file, 'T')
-        is3D = y is not None
-
-        duration = min(params['duration'], t[-1])
-        if duration < params['average_interval']: print('WARNING: averaging interval longer than simulation duration, averaging over entire duration...')
-        tstart = duration - params['average_interval']
-        timeframe_mask = np.logical_and(t >= tstart, t <= duration)
-
-        t = t[timeframe_mask]
-
-        T = get_field(file, 'T')[timeframe_mask]
-        T_avg = np.mean(average_zonal(T), axis=0)
-
-        plots_shape = np.array((2, 1))
-        plots_size_each = np.array((8, 4))
-        fig = plt.figure(figsize=np.flip(plots_shape) * plots_size_each)
-        fig.suptitle(f'Cross-section at y=Ly/2, averaged from {np.round(tstart, 2)} to {np.round(duration, 2)} viscous times')
-
-        ax = fig.add_subplot(*plots_shape, 1)
-        ax.set_title("Time & zonally averaged T")
-        pcm = ax.pcolormesh(x, z, T_avg.T, shading='nearest', cmap="CMRmap", label='<T>')
-        fig.colorbar(pcm, ax=ax)
-        ax.set_xlabel('x')
-        ax.set_ylabel('z')
-        ax.set_aspect(1)
-
-        ax = fig.add_subplot(*plots_shape, 2)
-        if is3D:
-            ax.set_title(f'Snapshot of T at y=Ly/2 and t={duration}')
-            T_snapshot = T[-1, :, int(len(y) / 2), :]
-        else:
-            ax.set_title(f'Snapshot of T at t={duration}')
-            T_snapshot = T[-1, :, 0, :]
-        pcm = ax.pcolormesh(x, z, T_snapshot.T, shading='nearest', cmap="CMRmap", label='T')
-        fig.colorbar(pcm, ax=ax)
-        ax.set_xlabel('x')
-        ax.set_ylabel('z')
-        ax.set_aspect(1)
-
-        plt.tight_layout()
-        plt.savefig(path.join(plot_dir, image_name))
-        plt.close()
-
-
-def plot_averaged_momentum_eq(data_dir, plot_dir):
-    image_name = "averaged_momentum_eq.jpg"
+def plot_momentum_terms(data_dir, plot_dir):
+    image_name = "momentum_terms.jpg"
     print(f'Plotting "{image_name}"...')
     params = utils.read_params(data_dir)
     with h5py.File(path.join(data_dir, 'analysis.h5'), mode='r') as file:
@@ -412,7 +338,12 @@ def plot_averaged_momentum_eq(data_dir, plot_dir):
         plots_shape = np.array((2, 1))
         plots_size_each = np.array((8, 4))
         fig = plt.figure(figsize=np.flip(plots_shape) * plots_size_each)
-        fig.suptitle(f'Averaged from {np.round(tstart, 2)} to {np.round(tend, 2)} viscous times')
+        fig.suptitle(
+            "Terms of the averaged momentum equation\n"
+            f"Averaged in t from {np.round(tstart, 2)} to {np.round(tend, 2)} viscous times\n"
+            "All terms calculated in dedalus\n"
+            "Reynolds stresses calculated by assumption that these terms sum to exactly zero"
+        )
 
         # Plotting in the same format as Currie & Tobias (2016) did.
         # This means flipping the coriolis term w.r.t. the other terms, as
@@ -480,11 +411,10 @@ if __name__ == "__main__":
     except FileExistsError:
         pass
 
-    plot_averaged_momentum_eq(data_dir, plot_dir)
     plot_velocities(data_dir, plot_dir)
-    plot_momentum_x_terms(data_dir, plot_dir)
-    plot_momentum_y_terms(data_dir, plot_dir)
+    plot_temperature(data_dir, plot_dir)
     plot_heat_flux_z(data_dir, plot_dir)
     plot_energy(data_dir, plot_dir)
-    plot_temperature(data_dir, plot_dir)
+    plot_momentum_terms(data_dir, plot_dir)
+    plot_momentum_terms_post(data_dir, plot_dir)
     # video(data_dir, plot_dir)
