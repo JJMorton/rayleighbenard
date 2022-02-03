@@ -51,7 +51,7 @@ def average_horizontal(arr):
 
 def plot_velocities(data_dir, plot_dir):
     """Plot the time averaged velocities"""
-    image_name = "velocity.jpg"
+    image_name = "velocity.png"
     print(f'Plotting "{image_name}"...')
     params = utils.read_params(data_dir)
     with h5py.File(path.join(data_dir, 'state.h5'), mode='r') as file:
@@ -108,7 +108,7 @@ def plot_velocities(data_dir, plot_dir):
 
 
 def plot_temperature(data_dir, plot_dir):
-    image_name = "temperature.jpg"
+    image_name = "temperature.png"
     print(f'Plotting "{image_name}"...')
     params = utils.read_params(data_dir)
     with h5py.File(path.join(data_dir, 'state.h5'), mode='r') as file:
@@ -158,7 +158,7 @@ def plot_temperature(data_dir, plot_dir):
 
 
 def plot_heat_flux_z(data_dir, plot_dir):
-    image_name = "heat_flux_z.jpg"
+    image_name = "heat_flux_z.png"
     print(f'Plotting "{image_name}"...')
     params = utils.read_params(data_dir)
     with h5py.File(path.join(data_dir, 'analysis.h5'), mode='r') as file:
@@ -195,7 +195,7 @@ def plot_heat_flux_z(data_dir, plot_dir):
 
 
 def plot_energy(data_dir, plot_dir):
-    image_name = "energy.jpg"
+    image_name = "energy.png"
     print(f'Plotting "{image_name}"...')
     with h5py.File(path.join(data_dir, 'analysis.h5'), mode='r') as file:
         t, _, _, _ = get_dims(file, 'E')
@@ -218,7 +218,7 @@ def plot_energy(data_dir, plot_dir):
 
 
 def plot_momentum_terms_post(data_dir, plot_dir):
-    image_name = "momentum_terms_post.jpg"
+    image_name = "momentum_terms_post.png"
     print(f'Plotting "{image_name}"...')
     params = utils.read_params(data_dir)
     with h5py.File(path.join(data_dir, 'state.h5'), mode='r') as file:
@@ -308,7 +308,7 @@ def plot_momentum_terms_post(data_dir, plot_dir):
 
 
 def plot_momentum_terms(data_dir, plot_dir):
-    image_name = "momentum_terms.jpg"
+    image_name = "momentum_terms.png"
     print(f'Plotting "{image_name}"...')
     params = utils.read_params(data_dir)
     with h5py.File(path.join(data_dir, 'analysis.h5'), mode='r') as file:
