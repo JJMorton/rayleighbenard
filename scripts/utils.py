@@ -25,9 +25,13 @@ def scale_has_uniform_spacing(scale):
         # two elements, and tests if these are all basically zero
         return np.all(np.abs((scale[1:] - scale[:-1]) - (scale[1] - scale[0])) < epsilon)
 
-
-def fft_2d(data, axes, scales):
-    if len(axes) != len(scales) or len(axes) != 2:
+def fft_nd(data, axes, scales):
+    """
+    Takes the N-dimensional fourier transform of the array `data`
+    `axes` is a list of indices specifying the dimensions of `data` to transform
+    `scales` is a list of the bases (i.e. what you would plot `data` against, like x, y or z)
+    """
+    if len(axes) != len(scales):
         raise Exception("fft_2d requires 2 axis indices and two axis scales")
 
     # Make sure the axes are uniformly spaced all the way along
@@ -43,20 +47,20 @@ def fft_2d(data, axes, scales):
     kscales = [ 2 * np.pi * fft.fftshift(fft.fftfreq(len(scale), d=d)) for (scale, d) in zip(scales, spacing) ]
 
     # Actually perform the FFT
-    transformed = fft.fftshift(fft.fft2(data, axes=axes))
+    transformed = fft.fftshift(fft.fftn(data, axes=axes))
 
     return transformed, kscales
 
 
-def fft_2d_inverse(data, axes):
+def fft_nd_inverse(data, axes):
     if len(axes) != 2:
         raise Exception("fft_2d requires 2 axis indices and two axis scales")
-    return np.real(fft.ifft2(fft.ifftshift(data), axes=axes))
+    return np.real(fft.ifftn(fft.ifftshift(data), axes=axes))
 
 
 def kspace_lowpass(data, axes, scales, lambda_cutoff):
     # Transform to k space
-    data_fft, (kx1, kx2) = fft_2d(data, axes, scales)
+    data_fft, (kx1, kx2) = fft_nd(data, axes, scales)
 
     # k_space_magnitude[i, j] = kz[i]^2 + kx[j]^2
     # i.e. each element is the magnitude of the corresponding wave-vector
@@ -70,12 +74,12 @@ def kspace_lowpass(data, axes, scales, lambda_cutoff):
     data_fft = np.where(lowpass_mask, data_fft, 0)
 
     # Invert the FFT
-    return fft_2d_inverse(data_fft, axes)
+    return fft_nd_inverse(data_fft, axes)
 
 
 def kspace_highpass(data, axes, scales, lambda_cutoff):
     # Transform to k space
-    data_fft, (kx1, kx2) = fft_2d(data, axes, scales)
+    data_fft, (kx1, kx2) = fft_nd(data, axes, scales)
 
     # k_space_magnitude[i, j] = kz[i]^2 + kx[j]^2
     # i.e. each element is the magnitude of the corresponding wave-vector
@@ -89,6 +93,6 @@ def kspace_highpass(data, axes, scales, lambda_cutoff):
     data_fft = np.where(highpass_mask, data_fft, 0)
 
     # Invert the FFT
-    return fft_2d_inverse(data_fft, axes)
+    return fft_nd_inverse(data_fft, axes)
 
 
