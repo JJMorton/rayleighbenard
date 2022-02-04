@@ -32,7 +32,7 @@ def fft_nd(data, axes, scales):
     `scales` is a list of the bases (i.e. what you would plot `data` against, like x, y or z)
     """
     if len(axes) != len(scales):
-        raise Exception("fft_2d requires 2 axis indices and two axis scales")
+        raise Exception("fft_nd requires 2 axis indices and two axis scales")
 
     # Make sure the axes are uniformly spaced all the way along
     for scale in scales:
@@ -54,7 +54,7 @@ def fft_nd(data, axes, scales):
 
 def fft_nd_inverse(data, axes):
     if len(axes) != 2:
-        raise Exception("fft_2d requires 2 axis indices and two axis scales")
+        raise Exception("fft_nd_inverse requires 2 axis indices and two axis scales")
     return np.real(fft.ifftn(fft.ifftshift(data), axes=axes))
 
 
