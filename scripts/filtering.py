@@ -4,7 +4,6 @@ import numpy as np
 from dedalus import public as de
 from matplotlib import pyplot as plt
 import scipy.fft as fft
-import scipy.interpolate as interpolate
 import time
 
 
