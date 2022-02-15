@@ -1,4 +1,4 @@
-**Scripts for Rayleigh-Benard convection in 2.5D**
+**Scripts for Rayleigh-Benard convection in 2.5D & 3D**
 
 To run a simulation:
 1. Create a directory for the analysis files to be saved in (e.g. `./analysis`)
