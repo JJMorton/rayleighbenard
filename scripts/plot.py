@@ -55,7 +55,12 @@ def plot_velocities(data_dir, plot_dir):
     image_name = "velocity.png"
     print(f'Plotting "{image_name}"...')
     params = utils.read_params(data_dir)
-    with h5py.File(path.join(data_dir, 'state.h5'), mode='r') as file:
+    filepath = path.join(data_dir, 'state.h5')
+    if not path.exists(filepath):
+        print(f"Plotting '{image_name}' requires '{filepath}'")
+        return
+
+    with h5py.File(filepath, mode='r') as file:
 
         t, x, y, z = get_dims(file, 'u')
 
@@ -112,7 +117,12 @@ def plot_temperature(data_dir, plot_dir):
     image_name = "temperature.png"
     print(f'Plotting "{image_name}"...')
     params = utils.read_params(data_dir)
-    with h5py.File(path.join(data_dir, 'state.h5'), mode='r') as file:
+    filepath = path.join(data_dir, 'state.h5')
+    if not path.exists(filepath):
+        print(f"Plotting '{image_name}' requires '{filepath}'")
+        return
+
+    with h5py.File(filepath, mode='r') as file:
 
         t, x, y, z = get_dims(file, 'T')
         is3D = y is not None
@@ -162,7 +172,12 @@ def plot_heat_flux_z(data_dir, plot_dir):
     image_name = "heat_flux_z.png"
     print(f'Plotting "{image_name}"...')
     params = utils.read_params(data_dir)
-    with h5py.File(path.join(data_dir, 'analysis.h5'), mode='r') as file:
+    filepath = path.join(data_dir, 'analysis.h5')
+    if not path.exists(filepath):
+        print(f"Plotting '{image_name}' requires '{filepath}'")
+        return
+
+    with h5py.File(filepath, mode='r') as file:
 
         t, _, _, z = get_dims(file, 'FluxHeatConv')
 
@@ -198,7 +213,12 @@ def plot_heat_flux_z(data_dir, plot_dir):
 def plot_energy(data_dir, plot_dir):
     image_name = "energy.png"
     print(f'Plotting "{image_name}"...')
-    with h5py.File(path.join(data_dir, 'analysis.h5'), mode='r') as file:
+    filepath = path.join(data_dir, 'analysis.h5')
+    if not path.exists(filepath):
+        print(f"Plotting '{image_name}' requires '{filepath}'")
+        return
+
+    with h5py.File(filepath, mode='r') as file:
         t, _, _, _ = get_dims(file, 'E')
 
         KE = np.squeeze(get_field(file, 'E'))
@@ -223,7 +243,12 @@ def plot_velocity_filters(data_dir, plot_dir):
     image_name = "velocity_filters.png"
     print(f'Plotting "{image_name}"...')
     params = utils.read_params(data_dir)
-    with h5py.File(path.join(data_dir, 'interp.h5'), mode='r') as file:
+    filepath = path.join(data_dir, 'interp.h5')
+    if not path.exists(filepath):
+        print(f"Plotting '{image_name}' requires '{filepath}'")
+        return
+
+    with h5py.File(filepath, mode='r') as file:
 
         t, x, y, z = get_dims(file, 'u')
 
@@ -320,7 +345,12 @@ def plot_momentum_terms_post(data_dir, plot_dir):
     image_name = "momentum_terms_post.png"
     print(f'Plotting "{image_name}"...')
     params = utils.read_params(data_dir)
-    with h5py.File(path.join(data_dir, 'state.h5'), mode='r') as file:
+    filepath = path.join(data_dir, 'state.h5')
+    if not path.exists(filepath):
+        print(f"Plotting '{image_name}' requires '{filepath}'")
+        return
+
+    with h5py.File(filepath, mode='r') as file:
 
         t, x, y, z = get_dims(file, 'u')
 
@@ -399,7 +429,12 @@ def plot_momentum_terms_filtered(data_dir, plot_dir):
     image_name = "momentum_terms_filtered.png"
     print(f'Plotting "{image_name}"...')
     params = utils.read_params(data_dir)
-    with h5py.File(path.join(data_dir, 'interp.h5'), mode='r') as file:
+    filepath = path.join(data_dir, 'interp.h5')
+    if not path.exists(filepath):
+        print(f"Plotting '{image_name}' requires '{filepath}'")
+        return
+
+    with h5py.File(filepath, mode='r') as file:
 
         t, x, y, z = get_dims(file, 'u')
 
@@ -501,7 +536,12 @@ def plot_momentum_terms(data_dir, plot_dir):
     image_name = "momentum_terms.png"
     print(f'Plotting "{image_name}"...')
     params = utils.read_params(data_dir)
-    with h5py.File(path.join(data_dir, 'analysis.h5'), mode='r') as file:
+    filepath = path.join(data_dir, 'analysis.h5')
+    if not path.exists(filepath):
+        print(f"Plotting '{image_name}' requires '{filepath}'")
+        return
+
+    with h5py.File(filepath, mode='r') as file:
 
         t, _, _, z = get_dims(file, 'ViscousX')
 
@@ -567,7 +607,12 @@ def plot_momentum_terms(data_dir, plot_dir):
 def video(data_dir, plot_dir):
     print(f'Rendering video...')
     params = utils.read_params(data_dir)
-    with h5py.File(path.join(data_dir, 'state.h5'), mode='r') as file:
+    filepath = path.join(data_dir, 'state.h5')
+    if not path.exists(filepath):
+        print(f"Creating video requires '{filepath}'")
+        return
+
+    with h5py.File(filepath, mode='r') as file:
         # Load datasets
         temp = average_zonal(get_field(file, 'T'))
         _, x, _, z = get_dims(file, 'T')
