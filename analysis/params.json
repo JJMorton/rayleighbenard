@@ -9,8 +9,8 @@
   "Lx": 5,
   "Ly": 5,
   "Lz": 1,
-  "duration": 5e-1,
-  "average_interval": 0.25,
+  "duration": 2,
+  "average_interval": 1.75,
   "timestep": 1e-05,
   "timestep_analysis": 1e-3,
   "mesh": [5, 5]
