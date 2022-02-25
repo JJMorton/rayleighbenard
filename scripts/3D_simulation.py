@@ -3,6 +3,7 @@
 import numpy as np
 from dedalus import public as de
 from dedalus.extras import flow_tools
+from dedalus.tools import post
 import shutil
 from glob import glob
 import os.path as path
@@ -195,9 +196,25 @@ def run(data_dir):
         logger.info('Run time: %.2f sec' %(end_time-start_time))
         logger.info('Run time: %f cpu-hr' %((end_time-start_time)/60/60*domain.dist.comm_cart.size))
 
+def merge(data_dir):
+
+    logger.info('Merging Files')
+
+    analysis_dir = path.join(data_dir, "analysis")
+    print(analysis_dir)
+    post.merge_process_files(analysis_dir, cleanup=True)
+    set_paths = glob(path.join(analysis_dir, 'analysis_s*.h5'))
+    post.merge_sets(path.join(data_dir, 'analysis.h5'), set_paths, cleanup=True)
+
+    state_dir = path.join(data_dir, "state")
+    post.merge_process_files(state_dir, cleanup=True)
+    set_paths = glob(path.join(state_dir, 'state_s*.h5'))
+    post.merge_sets(path.join(data_dir, 'state.h5'), set_paths, cleanup=True)
+        
 if __name__ == "__main__":
     if len(sys.argv) != 2:
         print("Please provide one argument: The file path to the directory to save the analysis in.")
         exit(1)
     data_dir = sys.argv[1]
     run(data_dir)
+    merge(data_dir)
