@@ -34,10 +34,10 @@ def main(data_dir):
         print("Interpolating velocity fields")
         for i in range(u.shape[0]):
             if i % 10 == 0: print(f"{(100 * i) // u.shape[0]}%")
-            u_interp[i] = filtering.interp_to_fourier(u[i], axis=-1)
+            u_interp[i] = filtering.interp_to_basis(u[i], axis=-1, src=de.Chebyshev, dest=de.Fourier)
             if v_interp is not None and v is not None:
-                v_interp[i] = filtering.interp_to_fourier(v[i], axis=-1)
-            w_interp[i] = filtering.interp_to_fourier(w[i], axis=-1)
+                v_interp[i] = filtering.interp_to_basis(v[i], axis=-1, src=de.Chebyshev, dest=de.Fourier)
+            w_interp[i] = filtering.interp_to_basis(w[i], axis=-1, src=de.Chebyshev, dest=de.Fourier)
 
         print("Saving to interp.h5")
         xbasis = de.Fourier('x', len(x), interval=(x[0], x[-1]))
