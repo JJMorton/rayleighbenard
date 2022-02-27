@@ -185,7 +185,6 @@ def merge(data_dir):
     logger.info('Merging Files')
 
     analysis_dir = path.join(data_dir, "analysis")
-    print(analysis_dir)
     post.merge_process_files(analysis_dir, cleanup=True)
     set_paths = glob(path.join(analysis_dir, 'analysis_s*.h5'))
     post.merge_sets(path.join(data_dir, 'analysis.h5'), set_paths, cleanup=True)
