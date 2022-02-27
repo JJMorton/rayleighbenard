@@ -5,7 +5,10 @@ from dedalus import public as de
 from matplotlib import pyplot as plt
 import scipy.fft as fft
 import time
-from perlin_noise import PerlinNoise
+try:
+    from perlin_noise import PerlinNoise
+except ImportError:
+    PerlinNoise = None
 
 
 def create_linear_bases(bases):
@@ -21,41 +24,39 @@ def create_linear_bases(bases):
     return newbases
 
 
-def interp_to_basis_dedalus(field, dest=de.Fourier, dest_res=None):
+def interp_to_basis_dedalus(field, axis=-1, dest=de.Fourier):
     """
-    Interpolate `field` into an evenly spaced grid along the z axis (must be
-    placed last)
+    Interpolate `field` into an evenly spaced grid along `axis`.
+    This function can be used in a de.GeneralFunction.
     """
 
-    # Remember so we can change back after
-    original_field_layout = field.layout
-
+    # The dedalus name of the basis we are interpolating along
+    basis_name = field.domain.bases[axis].name
     # Set up the array that the interpolated values will be put into
-    # Put the axis we are interpolating first
     interped_shape = list(field['g'].shape)
-    (interped_shape[0], interped_shape[-1]) = (dest_res or interped_shape[-1], interped_shape[0])
+    # Put the specified axis at the start
+    (interped_shape[0], interped_shape[axis]) = (interped_shape[axis], interped_shape[0])
     interped = np.zeros(interped_shape)
-    interped_grid = dest('z', field.domain.bases[-1].base_grid_size * field.domain.dealias[-1], interval=field.domain.bases[-1].interval).grid()
+    interped_grid = dest(basis_name, field.domain.bases[axis].base_grid_size * field.domain.dealias[axis], interval=field.domain.bases[axis].interval).grid()
 
     # The interpolation
     start_time = time.time()
     for i in range(interped.shape[0]):
-        interp = de.operators.interpolate(field, z=interped_grid[i]).evaluate()
+        kwargs = {}
+        kwargs[basis_name] = interped_grid[i]
+        interp = de.operators.interpolate(field, **kwargs).evaluate()
         if interp is None:
-            raise Exception(f"[interp_to_basis_dedalus] Failed to interpolate field {field.name}")
+            raise Exception("[interp_to_basis_dedalus] Failed to interpolate field {}".format(field.name))
         # The Dedalus interpolate operator returns an array the same shape as the field
         # but each slice at constant z is the same, hence why we just take the first here
-        interped[i] = np.real(interp['g'])[0]
+        interped[i] = np.real(np.swapaxes(interp['g'], 0, axis)[0])
     end_time = time.time()
-    print(f"[interp_to_basis_dedalus] Interpolated field '{field.name}' in {np.round(end_time - start_time, 3)}s")
+    # print("[interp_to_basis_dedalus] Interpolated field '{}' in {}s".format(field.name, np.round(end_time - start_time, 3)))
 
-    # Put the field back into the layout it was originally.
-    # Found I have to do this, otherwise Dedalus will complain when this
-    # function is used in a GeneralFunction operator
-    field.require_layout(original_field_layout)
+    # Move the interpolated axis back to where it should be
+    interped = np.swapaxes(interped, 0, axis)
 
-    # Put the axis back in the position it should be
-    return np.swapaxes(interped, 0, -1);
+    return interped
 
 
 def interp_to_basis(arr, axis=-1, src=de.Chebyshev, dest=de.Fourier, dest_res=None):
@@ -449,13 +450,20 @@ def test_dedalus_interp():
     z = de.Chebyshev('z', res, interval=(0, Lz)).grid()
     z_lin = de.Fourier('z', res_z_interp, interval=(0, Lz)).grid()
 
-    print("  Generating 3-D perlin noise for testing...")
     arr = np.zeros((res, res, res))
-    noise = PerlinNoise(octaves=2, seed=np.random.rand() * 9999999)
-    for i in range(res):
-        for j in range(res):
-            for k in range(res):
-                arr[i, j, k] = noise([x[i], y[j], z[k]])
+    if PerlinNoise is not None:
+        print("  Generating 3-D perlin noise for testing...")
+        noise = PerlinNoise(octaves=2, seed=np.random.rand() * 9999999)
+        for i in range(res):
+            for j in range(res):
+                for k in range(res):
+                    arr[i, j, k] = noise([x[i], y[j], z[k]])
+    else:
+        xgrid = np.add.outer(np.add.outer(x, empty), empty)
+        ygrid = np.add.outer(np.add.outer(empty, y), empty)
+        zgrid = np.add.outer(np.add.outer(empty, empty), z)
+        arr = np.sin(8 * np.pi * zgrid / L) + np.sin(4 * np.pi * xgrid / L)
+
     arr_dz = np.gradient(arr, z, axis=-1, edge_order=2)
     arr_dz2 = np.gradient(arr_dz, z, axis=-1, edge_order=2)
 

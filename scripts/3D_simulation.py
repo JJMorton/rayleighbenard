@@ -21,22 +21,6 @@ def run(data_dir):
     # Read parameters from file
     params = utils.read_params(data_dir)
 
-    def interp_to_fourier(field):
-        arr = np.array(field['g'])
-        print(f"[interp_to_fourier] {arr.shape=} {arr.dtype=}")
-        # return arr
-        interped = filtering.interp_to_basis_dedalus(field, dest=de.Fourier)
-        print(f"[interp_to_fourier] {interped.shape=} {interped.dtype=}")
-        return interped
-    def interp_to_fourier_wrapper(field):
-        return de.operators.GeneralFunction(
-            field.domain,
-            layout='g',
-            func=interp_to_fourier,
-            args=(field,)
-        )
-    de.operators.parseables['interp_to_fourier'] = interp_to_fourier_wrapper
-    
     ##################################################
     # Set up domain, fields and equations
 
@@ -58,7 +42,6 @@ def run(data_dir):
     problem.parameters['Ta'] = params["Ta"]
     problem.parameters['Theta'] = params["Theta"]
     problem.parameters['X'] = params["Ra"]/params["Pr"]
-
 
     # Defining d/dz of T, u, v and w for reducing our equations to first order
     problem.add_equation("dz(u) - uz = 0")
@@ -127,11 +110,6 @@ def run(data_dir):
     state.add_task("ut", layout='g', name='u_dt')
     state.add_task("vt", layout='g', name='v_dt')
 
-    interp = solver.evaluator.add_file_handler(path.join(data_dir, "interp"), sim_dt=params["timestep_analysis"], mode='overwrite')
-    interp.add_task("interp_to_fourier(u)", layout='g', name='u')
-    interp.add_task("interp_to_fourier(v)", layout='g', name='v')
-    interp.add_task("interp_to_fourier(w)", layout='g', name='w')
-    
     analysis = solver.evaluator.add_file_handler(path.join(data_dir, "analysis"), sim_dt=params["timestep_analysis"], mode='overwrite')
     # Total energy E(t)
     analysis.add_task("integ(integ(integ(0.5 * (u*u + v*v + w*w), 'x'), 'y'), 'z') / (Lx * Ly * Lz)", layout='g', name='E')

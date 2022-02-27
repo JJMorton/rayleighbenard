@@ -7,6 +7,7 @@ import matplotlib.animation as ani
 from os import path
 from os import mkdir
 import sys
+import dedalus.public as de
 
 import filtering
 import utils
@@ -250,7 +251,9 @@ def plot_velocity_filters(data_dir, plot_dir):
 
     with h5py.File(filepath, mode='r') as file:
 
-        t, x, y, z = get_dims(file, 'u')
+        # The order of the bases in interp.h5 is reversed, we need to do some swapping around
+        t, z, y, x = get_dims(file, 'u')
+        is3D = y is not None
 
         duration = min(params['duration'], t[-1])
         if duration < params['average_interval']: print('WARNING: averaging interval longer than simulation duration, averaging over entire duration...')
@@ -259,28 +262,42 @@ def plot_velocity_filters(data_dir, plot_dir):
 
         t = t[timeframe_mask]
 
-        u = get_field(file, 'u')[-1]
-        v = get_field(file, 'v')[-1]
-        w = get_field(file, 'w')[-1]
+        # Correct the order of the axes after reading in the fields
+        u = np.swapaxes(get_field(file, 'u')[-1], 0, -1)
+        if is3D: v = np.swapaxes(get_field(file, 'v')[-1], 0, -1)
+        w = np.swapaxes(get_field(file, 'w')[-1], 0, -1)
 
         wavelength = params["Lz"] / 2
 
-        u_lowpass = filtering.kspace_lowpass(u, (0, 1, 2), (x, y, z), wavelength, interp=False)[:, params["resY"]//2]
-        v_lowpass = filtering.kspace_lowpass(v, (0, 1, 2), (x, y, z), wavelength, interp=False)[:, params["resY"]//2]
-        w_lowpass = filtering.kspace_lowpass(w, (0, 1, 2), (x, y, z), wavelength, interp=False)[:, params["resY"]//2]
+        indices = (0, 1, 2) if is3D else (0, 1)
+        bases = (x, y, z) if is3D else (x, z)
+        u_lowpass = filtering.kspace_lowpass(u, indices, bases, wavelength, interp=False)
+        v_lowpass = filtering.kspace_lowpass(v, indices, bases, wavelength, interp=False)
+        w_lowpass = filtering.kspace_lowpass(w, indices, bases, wavelength, interp=False)
 
-        u_highpass = filtering.kspace_highpass(u, (0, 1, 2), (x, y, z), wavelength, interp=False)[:, params["resY"]//2]
-        v_highpass = filtering.kspace_highpass(v, (0, 1, 2), (x, y, z), wavelength, interp=False)[:, params["resY"]//2]
-        w_highpass = filtering.kspace_highpass(w, (0, 1, 2), (x, y, z), wavelength, interp=False)[:, params["resY"]//2]
+        u_highpass = filtering.kspace_highpass(u, indices, bases, wavelength, interp=False)
+        v_highpass = filtering.kspace_highpass(v, indices, bases, wavelength, interp=False)
+        w_highpass = filtering.kspace_highpass(w, indices, bases, wavelength, interp=False)
 
-        u = u[:, params["resY"]//2]
-        v = v[:, params["resY"]//2]
-        w = w[:, params["resY"]//2]
+        # In 3D, take a slice at constant y so we can plot in 2D
+        if is3D:
+            u_highpass = u_highpass[:, params["resY"]//2]
+            v_highpass = v_highpass[:, params["resY"]//2]
+            w_highpass = w_highpass[:, params["resY"]//2]
+            u_lowpass = u_lowpass[:, params["resY"]//2]
+            v_lowpass = v_lowpass[:, params["resY"]//2]
+            w_lowpass = w_lowpass[:, params["resY"]//2]
+            u = u[:, params["resY"]//2]
+            v = v[:, params["resY"]//2]
+            w = w[:, params["resY"]//2]
 
         plots_shape = np.array((3, 3))
         plots_size_each = np.array((8, 2))
         fig = plt.figure(figsize=np.flip(plots_shape) * plots_size_each)
-        fig.suptitle(f'Snapshot of velocities at end of simulation, at y=Ly/2')
+        if is3D:
+            fig.suptitle('Snapshot of velocities at t={:.2f} and y=Ly/2'.format(duration))
+        else:
+            fig.suptitle('Snapshot of velocities at t={:.2f}')
 
         ax = fig.add_subplot(*plots_shape, 1)
         ax.set_title("u")
@@ -353,6 +370,10 @@ def plot_momentum_terms_post(data_dir, plot_dir):
     with h5py.File(filepath, mode='r') as file:
 
         t, x, y, z = get_dims(file, 'u')
+
+        if y is None:
+            print("Plotting momentum terms only has support for 3D right now.")
+            return
 
         duration = min(params['duration'], t[-1])
         if duration < params['average_interval']: print('WARNING: averaging interval longer than simulation duration, averaging over entire duration...')
@@ -436,7 +457,11 @@ def plot_momentum_terms_filtered(data_dir, plot_dir):
 
     with h5py.File(filepath, mode='r') as file:
 
-        t, x, y, z = get_dims(file, 'u')
+        t, z, y, x = get_dims(file, 'u')
+
+        if y is None:
+            print("Plotting filtered momentum terms only has support for 3D right now.")
+            return
 
         duration = min(params['duration'], t[-1])
         if duration < params['average_interval']: print('WARNING: averaging interval longer than simulation duration, averaging over entire duration...')
@@ -448,6 +473,10 @@ def plot_momentum_terms_filtered(data_dir, plot_dir):
         u = get_field(file, 'u')[timeframe_mask]
         v = get_field(file, 'v')[timeframe_mask]
         w = get_field(file, 'w')[timeframe_mask]
+
+        u = np.swapaxes(u, 1, -1)
+        v = np.swapaxes(v, 1, -1)
+        w = np.swapaxes(w, 1, -1)
 
         print("  Filtering velocity fields...")
         wavelength = params["Lz"] / 2
@@ -464,9 +493,15 @@ def plot_momentum_terms_filtered(data_dir, plot_dir):
         viscous_x = -np.gradient(np.gradient(u, z, axis=-1, edge_order=2), z, axis=-1, edge_order=2) / coeff
         viscous_x_low = -np.gradient(np.gradient(u_low, z, axis=-1, edge_order=2), z, axis=-1, edge_order=2) / coeff
         viscous_x_high = -np.gradient(np.gradient(u_high, z, axis=-1, edge_order=2), z, axis=-1, edge_order=2) / coeff
-        stress_x = np.mean(np.gradient(average_horizontal( (u - np.mean(u, axis=0, keepdims=True)) * (w - np.mean(w, axis=0, keepdims=True)) ), z, axis=-1, edge_order=2), axis=0) / coeff
-        stress_x_low = np.mean(np.gradient(average_horizontal( (u_low - np.mean(u_low, axis=0, keepdims=True)) * (w_low - np.mean(w_low, axis=0, keepdims=True)) ), z, axis=-1, edge_order=2), axis=0) / coeff
-        stress_x_high = np.mean(np.gradient(average_horizontal( (u_high - np.mean(u_high, axis=0, keepdims=True)) * (w_high - np.mean(w_high, axis=0, keepdims=True)) ), z, axis=-1, edge_order=2), axis=0) / coeff
+        stress_x = np.mean(np.gradient(average_horizontal(
+            (u - np.mean(u, axis=0, keepdims=True)) * (w - np.mean(w, axis=0, keepdims=True))
+        ), z, axis=-1, edge_order=2), axis=0) / coeff
+        stress_x_low = np.mean(np.gradient(average_horizontal(
+            (u_low - np.mean(u_low, axis=0, keepdims=True)) * (w_low - np.mean(w_low, axis=0, keepdims=True))
+        ), z, axis=-1, edge_order=2), axis=0) / coeff
+        stress_x_high = np.mean(np.gradient(average_horizontal(
+            (u_high - np.mean(u_high, axis=0, keepdims=True)) * (w_high - np.mean(w_high, axis=0, keepdims=True))
+        ), z, axis=-1, edge_order=2), axis=0) / coeff
 
         # The y component terms
         print("  Calculating y terms...")
@@ -533,6 +568,9 @@ def plot_momentum_terms_filtered(data_dir, plot_dir):
 
 
 def plot_momentum_terms(data_dir, plot_dir):
+    """
+    This isn't particularly useful anymore, it's usually better to just calculate them in post-processing
+    """
     image_name = "momentum_terms.png"
     print(f'Plotting "{image_name}"...')
     params = utils.read_params(data_dir)
@@ -655,3 +693,4 @@ if __name__ == "__main__":
     plot_momentum_terms_filtered(data_dir, plot_dir)
     plot_velocity_filters(data_dir, plot_dir)
     # video(data_dir, plot_dir)
+
