@@ -40,25 +40,25 @@ def average_zonal(arr):
     """Average the field along the zonal direction: (t, x, y, z) --> (t, x, z)"""
     dims = len(arr.shape)
     if dims != 4:
-        raise Exception(f"Attempt to zonally average array with {dims} dimensions")
+        raise Exception("Attempt to zonally average array with {} dimensions".format(dims))
     return np.mean(arr, axis=2)
 
 def average_horizontal(arr):
     """Average the field horizonally: (t, x, y, z) --> (t, z)"""
     dims = len(arr.shape)
     if dims != 4:
-        raise Exception(f"Attempt to horizontally average array with {dims} dimensions")
+        raise Exception("Attempt to horizontally average array with {} dimensions".format(dims))
     return np.mean(np.mean(arr, axis=1), axis=1)
 
 
 def plot_velocities(data_dir, plot_dir):
     """Plot the time averaged velocities"""
     image_name = "velocity.png"
-    print(f'Plotting "{image_name}"...')
+    print('Plotting "{}"...'.format(image_name))
     params = utils.read_params(data_dir)
     filepath = path.join(data_dir, 'state.h5')
     if not path.exists(filepath):
-        print(f"Plotting '{image_name}' requires '{filepath}'")
+        print("Plotting '{}' requires '{}'".format(image_name, filepath))
         return
 
     with h5py.File(filepath, mode='r') as file:
@@ -83,7 +83,7 @@ def plot_velocities(data_dir, plot_dir):
         plots_shape = np.array((2, 2))
         plots_size_each = np.array((8, 4))
         fig = plt.figure(figsize=np.flip(plots_shape) * plots_size_each)
-        fig.suptitle(f'Averaged zonally and in time from {np.round(tstart, 2)} to {np.round(duration, 2)} viscous times')
+        fig.suptitle('Averaged zonally and in time from {:.2f} to {:.2f} viscous times'.format(tstart, duration))
 
         ax = fig.add_subplot(*plots_shape, 1)
         ax.set_title("Time averaged u")
@@ -116,11 +116,11 @@ def plot_velocities(data_dir, plot_dir):
 
 def plot_temperature(data_dir, plot_dir):
     image_name = "temperature.png"
-    print(f'Plotting "{image_name}"...')
+    print('Plotting "{}"...'.format(image_name))
     params = utils.read_params(data_dir)
     filepath = path.join(data_dir, 'state.h5')
     if not path.exists(filepath):
-        print(f"Plotting '{image_name}' requires '{filepath}'")
+        print("Plotting '{}' requires '{}'".format(image_name, filepath))
         return
 
     with h5py.File(filepath, mode='r') as file:
@@ -141,7 +141,7 @@ def plot_temperature(data_dir, plot_dir):
         plots_shape = np.array((2, 1))
         plots_size_each = np.array((8, 4))
         fig = plt.figure(figsize=np.flip(plots_shape) * plots_size_each)
-        fig.suptitle(f'Cross-section at y=Ly/2, averaged from {np.round(tstart, 2)} to {np.round(duration, 2)} viscous times')
+        fig.suptitle('Cross-section at y=Ly/2, averaged from {:.2f} to {:.2f} viscous times'.format(tstart, duration))
 
         ax = fig.add_subplot(*plots_shape, 1)
         ax.set_title("Time & zonally averaged T")
@@ -153,10 +153,10 @@ def plot_temperature(data_dir, plot_dir):
 
         ax = fig.add_subplot(*plots_shape, 2)
         if is3D:
-            ax.set_title(f'Snapshot of T at y=Ly/2 and t={np.round(duration)} viscous times')
+            ax.set_title('Snapshot of T at y=Ly/2 and t={:.2f} viscous times'.format(duration))
             T_snapshot = T[-1, :, params["resY"] // 2, :]
         else:
-            ax.set_title(f'Snapshot of T at t={np.round(duration, 2)} viscous times')
+            ax.set_title('Snapshot of T at t={:.2f} viscous times'.format(duration))
             T_snapshot = T[-1, :, 0, :]
         pcm = ax.pcolormesh(x, z, T_snapshot.T, shading='nearest', cmap="CMRmap", label='T')
         fig.colorbar(pcm, ax=ax)
@@ -171,11 +171,11 @@ def plot_temperature(data_dir, plot_dir):
 
 def plot_heat_flux_z(data_dir, plot_dir):
     image_name = "heat_flux_z.png"
-    print(f'Plotting "{image_name}"...')
+    print('Plotting "{}"...'.format(image_name))
     params = utils.read_params(data_dir)
     filepath = path.join(data_dir, 'analysis.h5')
     if not path.exists(filepath):
-        print(f"Plotting '{image_name}' requires '{filepath}'")
+        print("Plotting '{}' requires '{}'".format(image_name, filepath))
         return
 
     with h5py.File(filepath, mode='r') as file:
@@ -196,7 +196,7 @@ def plot_heat_flux_z(data_dir, plot_dir):
         plots_shape = np.array((1, 1))
         plots_size_each = np.array((8, 4))
         fig = plt.figure(figsize=np.flip(plots_shape) * plots_size_each)
-        fig.suptitle(f'Averaged from {np.round(tstart, 2)} to {np.round(duration, 2)} viscous times')
+        fig.suptitle('Averaged from {:.2f} to {:.2f} viscous times'.format(tstart, duration))
 
         ax = fig.add_subplot(*plots_shape, 1)
         ax.set_title("Vertical heat flux")
@@ -213,10 +213,10 @@ def plot_heat_flux_z(data_dir, plot_dir):
 
 def plot_energy(data_dir, plot_dir):
     image_name = "energy.png"
-    print(f'Plotting "{image_name}"...')
+    print('Plotting "{}"...'.format(image_name))
     filepath = path.join(data_dir, 'analysis.h5')
     if not path.exists(filepath):
-        print(f"Plotting '{image_name}' requires '{filepath}'")
+        print("Plotting '{}' requires '{}'".format(image_name, filepath))
         return
 
     with h5py.File(filepath, mode='r') as file:
@@ -242,11 +242,11 @@ def plot_energy(data_dir, plot_dir):
 def plot_velocity_filters(data_dir, plot_dir):
     """Plot a snapshot in time of the velocities, against the low and high pass filtered versions"""
     image_name = "velocity_filters.png"
-    print(f'Plotting "{image_name}"...')
+    print('Plotting "{}"...'.format(image_name))
     params = utils.read_params(data_dir)
     filepath = path.join(data_dir, 'interp.h5')
     if not path.exists(filepath):
-        print(f"Plotting '{image_name}' requires '{filepath}'")
+        print("Plotting '{}' requires '{}'".format(image_name, filepath))
         return
 
     with h5py.File(filepath, mode='r') as file:
@@ -360,11 +360,11 @@ def plot_velocity_filters(data_dir, plot_dir):
 
 def plot_momentum_terms_post(data_dir, plot_dir):
     image_name = "momentum_terms_post.png"
-    print(f'Plotting "{image_name}"...')
+    print('Plotting "{}"...'.format(image_name))
     params = utils.read_params(data_dir)
     filepath = path.join(data_dir, 'state.h5')
     if not path.exists(filepath):
-        print(f"Plotting '{image_name}' requires '{filepath}'")
+        print("Plotting '{}' requires '{}'".format(image_name, filepath))
         return
 
     with h5py.File(filepath, mode='r') as file:
@@ -419,7 +419,7 @@ def plot_momentum_terms_post(data_dir, plot_dir):
         fig = plt.figure(figsize=np.flip(plots_shape) * plots_size_each)
         fig.suptitle(
             "Terms of the averaged momentum equation\n"
-            f"Averaged in t from {np.round(tstart, 2)} to {np.round(tend, 2)} viscous times\n"
+            "Averaged in t from {:.2f} to {:.2f} viscous times\n".format(tstart, tend)
             "All terms calculated in post-processing"
         )
 
@@ -448,11 +448,11 @@ def plot_momentum_terms_post(data_dir, plot_dir):
 
 def plot_momentum_terms_filtered(data_dir, plot_dir):
     image_name = "momentum_terms_filtered.png"
-    print(f'Plotting "{image_name}"...')
+    print('Plotting "{}"...'.format(image_name))
     params = utils.read_params(data_dir)
     filepath = path.join(data_dir, 'interp.h5')
     if not path.exists(filepath):
-        print(f"Plotting '{image_name}' requires '{filepath}'")
+        print("Plotting '{}' requires '{}'".format(image_name, filepath))
         return
 
     with h5py.File(filepath, mode='r') as file:
@@ -534,7 +534,7 @@ def plot_momentum_terms_filtered(data_dir, plot_dir):
         fig = plt.figure(figsize=np.flip(plots_shape) * plots_size_each)
         fig.suptitle(
             "Terms of the averaged momentum equation\n"
-            f"Averaged in t from {np.round(tstart, 2)} to {np.round(tend, 2)} viscous times\n"
+            "Averaged in t from {:.2f} to {:.2f} viscous times\n".format(tstart, tend)
             "All terms calculated in post-processing"
         )
 
@@ -572,11 +572,11 @@ def plot_momentum_terms(data_dir, plot_dir):
     This isn't particularly useful anymore, it's usually better to just calculate them in post-processing
     """
     image_name = "momentum_terms.png"
-    print(f'Plotting "{image_name}"...')
+    print('Plotting "{}"...'.format(image_name))
     params = utils.read_params(data_dir)
     filepath = path.join(data_dir, 'analysis.h5')
     if not path.exists(filepath):
-        print(f"Plotting '{image_name}' requires '{filepath}'")
+        print("Plotting '{}' requires '{}'".format(image_name, filepath))
         return
 
     with h5py.File(filepath, mode='r') as file:
@@ -608,7 +608,7 @@ def plot_momentum_terms(data_dir, plot_dir):
         fig = plt.figure(figsize=np.flip(plots_shape) * plots_size_each)
         fig.suptitle(
             "Terms of the averaged momentum equation\n"
-            f"Averaged in t from {np.round(tstart, 2)} to {np.round(tend, 2)} viscous times\n"
+            "Averaged in t from {:.2f} to {:.2f} viscous times\n".format(tstart, tend)
             "All terms calculated in dedalus\n"
             "Reynolds stresses calculated by assumption that these terms sum to exactly zero"
         )
@@ -643,11 +643,11 @@ def plot_momentum_terms(data_dir, plot_dir):
 
 
 def video(data_dir, plot_dir):
-    print(f'Rendering video...')
+    print('Rendering video...')
     params = utils.read_params(data_dir)
     filepath = path.join(data_dir, 'state.h5')
     if not path.exists(filepath):
-        print(f"Creating video requires '{filepath}'")
+        print("Creating video requires '{}'".format(filepath))
         return
 
     with h5py.File(filepath, mode='r') as file:

@@ -6,12 +6,12 @@ def calc_plot_size(params):
     return figwidth, figheight
 
 def read_params(data_dir="analysis"):
-    with open(f'{data_dir}/params.json', 'r') as f:
+    with open('{}/params.json'.format(data_dir), 'r') as f:
         params = json.load(f)
     return params
 
 def save_params(params, data_dir="analysis"):
-    with open(f'{data_dir}/params.json', 'w') as f:
+    with open('{}/params.json'.format(data_dir), 'w') as f:
         json.dump(params, f, indent=2)
 
 def create_params_string(params):

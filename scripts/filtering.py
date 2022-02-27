@@ -73,7 +73,7 @@ def interp_to_basis(arr, axis=-1, src=de.Chebyshev, dest=de.Fourier, dest_res=No
 
     # Construct the dedalus domain and field to be interpolated
     # It doesn't matter what basis we use for the axes that aren't being interpolated, they are left as is
-    bases = [ de.Fourier(f'b{i}', res, interval=(0, 1)) for i, res in zip(range(num_dims), arr.shape) ]
+    bases = [ de.Fourier('b{}'.format(i), res, interval=(0, 1)) for i, res in zip(range(num_dims), arr.shape) ]
     bases[0] = src('z', arr.shape[0], interval=(0, 1))
     domain = de.Domain(bases)
     field = domain.new_field()
@@ -89,7 +89,7 @@ def interp_to_basis(arr, axis=-1, src=de.Chebyshev, dest=de.Fourier, dest_res=No
     for i in range(len(z_grid_dest)):
         interp = de.operators.interpolate(field, z=z_grid_dest[i]).evaluate()
         if interp is None:
-            raise Exception(f"Failed to interpolate field {field.name}")
+            raise Exception("Failed to interpolate field {}".format(field.name))
         interped[i] = np.real(interp['g'])[0]
 
     # Return the axes to their original order
