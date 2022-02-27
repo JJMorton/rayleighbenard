@@ -5,38 +5,10 @@ from dedalus import public as de
 from matplotlib import pyplot as plt
 import scipy.fft as fft
 import time
-
-
-def interp_to_fourier(arr, axis=-1, basis_type=de.Chebyshev):
-    """
-    Interpolate `arr` into an evenly spaced grid along `axis` (the last
-    axis by default)
-    """
-
-    # Put the axis we are interpolating first
-    arr = np.swapaxes(arr, 0, axis)
-    num_dims = len(arr.shape)
-
-    # Construct the dedalus domain and field to be interpolated
-    bases = [ de.Fourier(f'b{i}', res) for i, res in zip(range(num_dims), arr.shape) ]
-    bases[0] = zbasis = basis_type('z', arr.shape[0])
-    domain = de.Domain(bases)
-    field = domain.new_field()
-    field['g'] = arr
-
-    interped = np.zeros(arr.shape)
-    z_grid = zbasis.grid()
-    z_grid_linear = np.linspace(z_grid[0], z_grid[-1], len(z_grid))
-
-    # Interpolation
-    for i in range(len(z_grid)):
-        interp = de.operators.interpolate(field, z=z_grid_linear[i]).evaluate()
-        if interp is None:
-            raise Exception(f"Failed to interpolate field {field.name}")
-        interped[i] = np.real(interp['g'])[0]
-
-    # Return the axes to their original order
-    return np.swapaxes(interped, 0, axis)
+try:
+    from perlin_noise import PerlinNoise
+except ImportError:
+    PerlinNoise = None
 
 
 def create_linear_bases(bases):
@@ -50,7 +22,79 @@ def create_linear_bases(bases):
         basis_lin = np.linspace(np.amin(basis), np.amax(basis), len(basis))
         newbases.append(basis_lin)
     return newbases
-    
+
+
+def interp_to_basis_dedalus(field, axis=-1, dest=de.Fourier):
+    """
+    Interpolate `field` into an evenly spaced grid along `axis`.
+    This function can be used in a de.GeneralFunction.
+    """
+
+    # The dedalus name of the basis we are interpolating along
+    basis_name = field.domain.bases[axis].name
+    # Set up the array that the interpolated values will be put into
+    interped_shape = list(field['g'].shape)
+    # Put the specified axis at the start
+    (interped_shape[0], interped_shape[axis]) = (interped_shape[axis], interped_shape[0])
+    interped = np.zeros(interped_shape)
+    interped_grid = dest(basis_name, field.domain.bases[axis].base_grid_size * field.domain.dealias[axis], interval=field.domain.bases[axis].interval).grid()
+
+    # The interpolation
+    start_time = time.time()
+    for i in range(interped.shape[0]):
+        kwargs = {}
+        kwargs[basis_name] = interped_grid[i]
+        interp = de.operators.interpolate(field, **kwargs).evaluate()
+        if interp is None:
+            raise Exception("[interp_to_basis_dedalus] Failed to interpolate field {}".format(field.name))
+        # The Dedalus interpolate operator returns an array the same shape as the field
+        # but each slice at constant z is the same, hence why we just take the first here
+        interped[i] = np.real(np.swapaxes(interp['g'], 0, axis)[0])
+    end_time = time.time()
+    # print("[interp_to_basis_dedalus] Interpolated field '{}' in {}s".format(field.name, np.round(end_time - start_time, 3)))
+
+    # Move the interpolated axis back to where it should be
+    interped = np.swapaxes(interped, 0, axis)
+
+    return interped
+
+
+def interp_to_basis(arr, axis=-1, src=de.Chebyshev, dest=de.Fourier, dest_res=None):
+    """
+    Interpolate `arr` into an evenly spaced grid along `axis` (the last
+    axis by default)
+    """
+
+    # Put the axis we are interpolating first
+    arr = np.swapaxes(arr, 0, axis)
+    num_dims = len(arr.shape)
+
+    dest_res = dest_res or arr.shape[0]
+
+    # Construct the dedalus domain and field to be interpolated
+    # It doesn't matter what basis we use for the axes that aren't being interpolated, they are left as is
+    bases = [ de.Fourier(f'b{i}', res, interval=(0, 1)) for i, res in zip(range(num_dims), arr.shape) ]
+    bases[0] = src('z', arr.shape[0], interval=(0, 1))
+    domain = de.Domain(bases)
+    field = domain.new_field()
+    field['g'] = arr
+
+    # The axis to be interpolated onto
+    shape_dest = list(arr.shape)
+    shape_dest[0] = dest_res
+    interped = np.zeros(shape_dest)
+    z_grid_dest = dest('z', dest_res, interval=(0, 1)).grid()
+
+    # Interpolation
+    for i in range(len(z_grid_dest)):
+        interp = de.operators.interpolate(field, z=z_grid_dest[i]).evaluate()
+        if interp is None:
+            raise Exception(f"Failed to interpolate field {field.name}")
+        interped[i] = np.real(interp['g'])[0]
+
+    # Return the axes to their original order
+    return np.swapaxes(interped, 0, axis)
+
 
 def fft_nd(data, axes, bases):
     """
@@ -99,10 +143,14 @@ def kspace_lowpass(data, axes, bases, lambda_cutoff, interp=False):
     Apply a lowpass filter to `data` along the specified axes.
     `bases` is the set of bases that data is specified by (e.g. x, y, and z arrays).
     `lambda_cutoff` is the smallest wavelength (equivalent to the largest frequency) that will be retained.
+    `interp`, if True, will interpolate the last axis of `data` onto a linear grid.
+
+    Example usage: kspace_lowpass(3d_arr, (0, 1, 2), (x, y, z), Lz / 4, interp=True)
+        where x, y and z are 1-D arrays specifying the axes' grid points (i.e. the grid scales from Dedalus)
     """
 
     # Interpolate to linear axis scales
-    data_interp = interp_to_fourier(data, axis=-1, basis_type=de.Chebyshev) if interp else data
+    data_interp = interp_to_basis(data, axis=-1, src=de.Chebyshev, dest=de.Fourier) if interp else data
 
     # Transform to k space
     bases_lin = create_linear_bases(bases)
@@ -133,11 +181,14 @@ def kspace_highpass(data, axes, bases, lambda_cutoff, interp=False):
     Apply a highpass filter to `data` along the specified axes.
     `bases` is the set of bases that data is specified by (e.g. x, y, and z arrays).
     `lambda_cutoff` is the largest wavelength (equivalent to the smallest frequency) that will be retained.
-    `interp`, if True, will interpolate the last axis of `data` onto a linear grid
+    `interp`, if True, will interpolate the last axis of `data` onto a linear grid.
+
+    Example usage: kspace_highpass(3d_arr, (0, 1, 2), (x, y, z), Lz / 4, interp=True)
+        where x, y and z are 1-D arrays specifying the axes' grid points (i.e. the grid scales from Dedalus)
     """
 
     # Interpolate to linear axis scales
-    data_interp = interp_to_fourier(data, axis=-1, basis_type=de.Chebyshev) if interp else data
+    data_interp = interp_to_basis(data, axis=-1, src=de.Chebyshev, dest=de.Fourier) if interp else data
 
     # Transform to k space
     bases_lin = create_linear_bases(bases)
@@ -163,6 +214,10 @@ def kspace_highpass(data, axes, bases, lambda_cutoff, interp=False):
     return data_fft_reversed
 
 
+#======================================================
+# FROM HERE ONWARDS,
+# FUNCTIONS FOR TESTING THE INTERPOLATION AND FILTERING
+
 def time_execution():
 
     def run_test(res, dims, interpolate):
@@ -174,7 +229,7 @@ def time_execution():
         L = 1
         wavelength_cutoff = L / 2 # Radius in wavelength-space
 
-        print(f"Timing filtering of a {'x'.join([str(res)] * dims)} array with" + ("" if interpolate else "out") + " interpolation...")
+        print(f"  Timing filtering of a {'x'.join([str(res)] * dims)} array with" + ("" if interpolate else "out") + " interpolation...")
 
         zaxis = de.Chebyshev('z', res, interval=(0, L)).grid(scale=1)
         xaxis = de.Fourier('x', res, interval=(0, L)).grid(scale=1)
@@ -185,109 +240,66 @@ def time_execution():
         start_time = time.time()
         data_filter_low = kspace_lowpass(data, tuple(range(dims)), axes, wavelength_cutoff, interp=interpolate)
         duration_low = np.round(time.time() - start_time, 3)
-        print(f'Calculated lowpass in {duration_low}s')
 
         start_time = time.time()
         data_filter_high = kspace_highpass(data, tuple(range(dims)), axes, wavelength_cutoff, interp=interpolate)
         duration_high = np.round(time.time() - start_time, 3)
-        print(f'Calculated highpass in {duration_high}s')
-        print("")
 
         return duration_low, duration_high
 
-    gs = plt.GridSpec(1, 6)
+    gs = plt.GridSpec(1, 4)
     fig = plt.figure(figsize=(gs.ncols * 4, gs.nrows * 3))
-    res = np.arange(5, 65, 5)
-    print("Running tests for 1 dimension")
-    dims1 = np.array([ np.mean(run_test(r, 1, interpolate=True)) for r in res ])
+    res = np.arange(5, 100, 5)
+    res4d = np.arange(5, 55, 5)
     print("Running tests for 2 dimensions")
     dims2 = np.array([ np.mean(run_test(r, 2, interpolate=True)) for r in res ])
     print("Running tests for 3 dimensions")
     dims3 = np.array([ np.mean(run_test(r, 3, interpolate=True)) for r in res ])
     print("Running tests for 4 dimensions")
-    dims4 = np.array([ np.mean(run_test(r, 4, interpolate=True)) for r in res ])
-    dims4_separate = dims3 * res
+    dims4 = np.array([ np.mean(run_test(r, 4, interpolate=True)) for r in res4d ])
+
+    print("  Calculating polyfit for 3D...")
+
+    poly = np.polyfit(res, dims3, deg=3)
+    print(f"  coeffs = {poly}")
+    polyx = np.linspace(0, 256, 256)
+    polyy = poly[0] * polyx**3 + poly[1] * polyx**2 + poly[2] * polyx + poly[3]
 
     ax = fig.add_subplot(gs[0, 0])
-    ax.plot(res, dims1)
+    ax.scatter(res, dims2, marker='x')
     ax.set_xlabel("Resolution")
-    ax.set_ylabel("Time taken")
-    ax.set_title("1 dimension")
-
-    ax = fig.add_subplot(gs[0, 1])
-    ax.plot(res, dims2)
-    ax.set_xlabel("Resolution")
-    ax.set_ylabel("Time taken")
+    ax.set_ylabel("Time taken (s)")
     ax.set_title("2 dimensions")
 
-    ax = fig.add_subplot(gs[0, 2])
-    ax.plot(res, dims3)
+    ax = fig.add_subplot(gs[0, 1])
+    ax.scatter(res, dims3, marker='x')
+    ax.plot(polyx, polyy, label="Cubic fit")
+    ax.axvline(polyx[-1], ls='--')
+    ax.axhline(polyy[-1], ls='--', label=f"{np.round(polyy[-1], 3)}s")
     ax.set_xlabel("Resolution")
-    ax.set_ylabel("Time taken")
+    ax.set_ylabel("Time taken (s)")
+    ax.legend()
     ax.set_title("3 dimensions")
 
-    ax = fig.add_subplot(gs[0, 3])
-    ax.plot(res, dims4)
+    ax = fig.add_subplot(gs[0, 2])
+    ax.scatter(res4d, dims4, marker='x')
     ax.set_xlabel("Resolution")
-    ax.set_ylabel("Time taken")
+    ax.set_ylabel("Time taken (s)")
     ax.set_title("4 dimensions")
 
-    ax = fig.add_subplot(gs[0, 4])
-    ax.plot(res, dims4_separate)
-    ax.set_xlabel("Resolution")
-    ax.set_ylabel("Time taken")
-    ax.set_title("4 dimensions (separate)")
-
-    ax = fig.add_subplot(gs[0, 5])
-    ax.plot(res, dims4/dims3, label="4-D / 3-D")
-    ax.plot(res, dims4_separate/dims3, ls='--', label='4-D (separate) / 3-D')
-    ax.plot(res, dims3/dims2, label="3-D / 2-D")
-    ax.plot(res, dims2/dims1, label="2-D / 1-D")
+    ax = fig.add_subplot(gs[0, 3])
+    ax.plot(res, res, ls='--', color='lightgray')
+    ax.scatter(res4d, dims4/dims3[:len(res4d)], label="4-D / 3-D", marker='x')
+    ax.scatter(res, dims3/dims2, label="3-D / 2-D", marker='x')
     ax.legend()
     ax.set_xlabel("Resolution")
     ax.set_ylabel("Ratio of time taken")
-    ax.set_title("Ratios")
+    ax.set_title("Less than linear --> better\nin higher dimensions")
 
     fig.suptitle("Time taken to interpolate + filter arrays with different resolutions & dimensions")
 
     plt.tight_layout()
     plt.show()
-
-
-def test_interpolation_separation():
-    L = 1
-    res = 50
-    timepoints = 1000
-
-    taxis = np.arange(timepoints)
-    xaxis = de.Fourier('x', res, interval=(0, L)).grid(scale=1)
-    yaxis = de.Fourier('y', res, interval=(0, L)).grid(scale=1)
-    zaxis = de.Chebyshev('z', res, interval=(0, L)).grid(scale=1)
-    axes = (taxis, xaxis, yaxis, zaxis)
-    grid_shape = (timepoints, res, res, res)
-    data = np.ones(grid_shape) * np.sin(4 * np.pi * zaxis)
-
-    print(f"Interpolating as 4D array...")
-    start_time = time.time()
-    interp = interp_to_fourier(data, axis=-1, basis_type=de.Chebyshev)
-    duration = np.round(time.time() - start_time, 3)
-    print(f'Interpolated in {duration}s')
-
-    print(f"Interpolating as set of 3D arrays...")
-    start_time = time.time()
-    interp_sep = np.zeros(grid_shape)
-    for i in range(grid_shape[0]):
-        if i % 10 == 0: print(f'{np.round(100 * i/grid_shape[0], 1)}%')
-        interp_sep[i] = interp_to_fourier(data[i], axis=-1, basis_type=de.Chebyshev)
-    duration_sep = np.round(time.time() - start_time, 3)
-    print(f'Interpolated in {duration_sep}s')
-    # square_diffs = np.power(interp_sep - interp, 2).flatten()
-    # square_diffs_mean = np.mean(square_diffs)
-    # square_diffs_median = np.median(square_diffs)
-    # square_diffs_max = np.amax(square_diffs)
-    # square_diffs_sum = np.sum(square_diffs)
-    # print(f"Square diffs mean={square_diffs_mean}, median={square_diffs_median}, max={square_diffs_max}, sum={square_diffs_sum}")
-
 
 def plot_test_case():
     """
@@ -309,7 +321,7 @@ def plot_test_case():
 
     data = np.sin(4 * np.pi * np.add.outer(x, np.zeros(len(z_cheb)))) + np.sin(8 * np.pi * np.add.outer(np.zeros(len(x)), z_cheb))
     (x, z_lin) = create_linear_bases((x, z_cheb))
-    data_interp = interp_to_fourier(data, axis=-1)
+    data_interp = interp_to_basis(data, axis=-1, src=de.Chebyshev, dest=de.Fourier)
 
     print("  Calculating transforms...")
     data_fft, (kx, kz) = fft_nd(data, (0, 1), (x, z_lin))
@@ -328,9 +340,9 @@ def plot_test_case():
     gs = plt.GridSpec(2, 5)
     fig = plt.figure(figsize=(gs.ncols * 4, gs.nrows * 3))
     fig.suptitle(
-        "High- and low-pass filtering with and without interpolation.\n"
-        "The first row shows filtering the simple (but incorrect) way, simply doing the FFT using a linear basis instead of the Chebyshev one.\n"
-        "The second row is the same process, but the z-axis is interpolated into a linear basis first.\n"
+        "High- and low-pass filtering with and without interpolation.\n" +
+        "The first row shows filtering the simple (but incorrect) way, simply doing the FFT using a linear basis instead of the Chebyshev one.\n" +
+        "The second row is the same process, but the z-axis is interpolated into a linear basis first.\n" +
         "Note the noisy (and incorrect) frequencies for the z-axis in the first case, and how they're mostly fixed in the second."
     )
 
@@ -423,53 +435,119 @@ def plot_test_case():
     fig.tight_layout()
     plt.show()
 
-
 def test_dedalus_interp():
-    L = 1
-    gs = plt.GridSpec(2, 5)
+    print("Running interpolation test case")
+    Lx = 5
+    Lz = 2
+    gs = plt.GridSpec(3, 3)
     fig = plt.figure(figsize=(gs.ncols * 4, gs.nrows * 3))
+    fig.suptitle("Interpolation of 3-D grids from Chebyshev to Fourier z axis\nPlotted averaged over y")
 
-    for i in range(5):
-        res = 20 * (i + 1)
-        print(f'Testing resolution of {res}...')
+    res = 50
+    res_z_interp = 100
 
-        x = y = z_lin = np.linspace(0, L, res)
-        z = de.Chebyshev('z', res, interval=(0, L)).grid()
-        empty = np.zeros((res,))
+    x = y = de.Fourier('x', res, interval=(0, Lx)).grid()
+    z = de.Chebyshev('z', res, interval=(0, Lz)).grid()
+    z_lin = de.Fourier('z', res_z_interp, interval=(0, Lz)).grid()
+
+    arr = np.zeros((res, res, res))
+    if PerlinNoise is not None:
+        print("  Generating 3-D perlin noise for testing...")
+        noise = PerlinNoise(octaves=2, seed=np.random.rand() * 9999999)
+        for i in range(res):
+            for j in range(res):
+                for k in range(res):
+                    arr[i, j, k] = noise([x[i], y[j], z[k]])
+    else:
         xgrid = np.add.outer(np.add.outer(x, empty), empty)
         ygrid = np.add.outer(np.add.outer(empty, y), empty)
         zgrid = np.add.outer(np.add.outer(empty, empty), z)
-
         arr = np.sin(8 * np.pi * zgrid / L) + np.sin(4 * np.pi * xgrid / L)
 
-        print("Interpolating...")
-        start_time = time.time()
-        interp = interp_to_fourier(arr)
-        duration = time.time() - start_time
-        print(f"Completed in {np.round(duration, 3)}s")
+    arr_dz = np.gradient(arr, z, axis=-1, edge_order=2)
+    arr_dz2 = np.gradient(arr_dz, z, axis=-1, edge_order=2)
 
-        ax = fig.add_subplot(gs[0, i])
-        mesh = ax.pcolormesh(x, z, np.mean(arr, axis=1).T, shading='nearest')
-        plt.colorbar(mesh)
-        ax.set_title(f"Original data ({res}x{res}x{res})")
-        ax.set_xlabel("x")
-        ax.set_ylabel("z (Chebyshev)")
+    print("  Interpolating...")
+    start_time = time.time()
+    arr_interp = interp_to_basis(arr, axis=-1, src=de.Chebyshev, dest=de.Fourier, dest_res=res_z_interp)
+    duration = time.time() - start_time
+    arr_interp_dz = np.gradient(arr_interp, z_lin, axis=-1, edge_order=2)
+    arr_interp_dz2 = np.gradient(arr_interp_dz, z_lin, axis=-1, edge_order=2)
 
-        ax = fig.add_subplot(gs[1, i])
-        mesh = ax.pcolormesh(x, z_lin, np.mean(interp, axis=1).T, shading='nearest')
-        plt.colorbar(mesh)
-        ax.set_title(f"Interpolated in {np.round(duration, 3)}s")
-        ax.set_xlabel("x")
-        ax.set_ylabel("z (Fourier)")
+    print("  Interpolating back...")
+    arr_interp2 = interp_to_basis(arr_interp, axis=-1, src=de.Fourier, dest=de.Chebyshev, dest_res=res)
+    arr_interp2_dz = np.gradient(arr_interp2, z, axis=-1, edge_order=2)
+    arr_interp2_dz2 = np.gradient(arr_interp2_dz, z, axis=-1, edge_order=2)
+
+    ax = fig.add_subplot(gs[0, 0])
+    mesh = ax.pcolormesh(x, z, np.mean(arr, axis=1).T, shading='nearest')
+    plt.colorbar(mesh)
+    ax.set_title(f"Original data ({res}x{res}x{res})")
+    ax.set_xlabel("x")
+    ax.set_ylabel("z (Chebyshev)")
+
+    ax = fig.add_subplot(gs[0, 1])
+    mesh = ax.pcolormesh(x, z, np.mean(arr_dz, axis=1).T, shading='nearest')
+    plt.colorbar(mesh)
+    ax.set_title(f"dz(Original data)")
+    ax.set_xlabel("x")
+    ax.set_ylabel("z (Chebyshev)")
+
+    ax = fig.add_subplot(gs[0, 2])
+    mesh = ax.pcolormesh(x, z, np.mean(arr_dz2, axis=1).T, shading='nearest')
+    plt.colorbar(mesh)
+    ax.set_title(f"dz^2(Original data)")
+    ax.set_xlabel("x")
+    ax.set_ylabel("z (Chebyshev)")
+
+    ax = fig.add_subplot(gs[1, 0])
+    mesh = ax.pcolormesh(x, z_lin, np.mean(arr_interp, axis=1).T, shading='nearest')
+    plt.colorbar(mesh)
+    ax.set_title(f"Interpolated to ({res}x{res}x{res_z_interp}) in {np.round(duration, 3)}s")
+    ax.set_xlabel("x")
+    ax.set_ylabel("z (Fourier)")
+
+    ax = fig.add_subplot(gs[1, 1])
+    mesh = ax.pcolormesh(x, z_lin, np.mean(arr_interp_dz, axis=1).T, shading='nearest')
+    plt.colorbar(mesh)
+    ax.set_title(f"dz(Interpolated)")
+    ax.set_xlabel("x")
+    ax.set_ylabel("z (Fourier)")
+
+    ax = fig.add_subplot(gs[1, 2])
+    mesh = ax.pcolormesh(x, z_lin, np.mean(arr_interp_dz2, axis=1).T, shading='nearest')
+    plt.colorbar(mesh)
+    ax.set_title(f"dz^2(Interpolated)")
+    ax.set_xlabel("x")
+    ax.set_ylabel("z (Fourier)")
+
+    ax = fig.add_subplot(gs[2, 0])
+    mesh = ax.pcolormesh(x, z, np.mean(arr_interp2 - arr, axis=1).T, shading='nearest')
+    plt.colorbar(mesh)
+    ax.set_title(f"Un-interpolated - Original")
+    ax.set_xlabel("x")
+    ax.set_ylabel("z (Chebyshev)")
+
+    ax = fig.add_subplot(gs[2, 1])
+    mesh = ax.pcolormesh(x, z, np.mean(arr_interp2_dz - arr_dz, axis=1).T, shading='nearest')
+    plt.colorbar(mesh)
+    ax.set_title(f"dz(Un-interpolated) - dz(Original)")
+    ax.set_xlabel("x")
+    ax.set_ylabel("z (Chebyshev)")
+
+    ax = fig.add_subplot(gs[2, 2])
+    mesh = ax.pcolormesh(x, z, np.mean(arr_interp2_dz2 - arr_dz2, axis=1).T, shading='nearest')
+    plt.colorbar(mesh)
+    ax.set_title(f"dz^2(Un-interpolated) - dz^2(Original)")
+    ax.set_xlabel("x")
+    ax.set_ylabel("z (Chebyshev)")
 
     plt.tight_layout()
     plt.show()
 
-
+# If you run this script as a program from the command line, run all the tests
 if __name__ == '__main__':
     plt.rcParams.update({'font.size': 8})
     plot_test_case()
-    # test_dedalus_interp()
-    # time_execution()
-    # test_interpolation_separation()
- 
+    test_dedalus_interp()
+    time_execution() 

@@ -10,9 +10,9 @@ import os.path as path
 from mpi4py import MPI
 import time
 import sys
-from scipy import signal
 
 import utils
+import filtering
 
 import logging
 logger = logging.getLogger(__name__)
@@ -21,7 +21,7 @@ def run(data_dir):
     
     # Read parameters from file
     params = utils.read_params(data_dir)
-    
+
     ##################################################
     # Set up domain, fields and equations
 
@@ -43,7 +43,6 @@ def run(data_dir):
     problem.parameters['Ta'] = params["Ta"]
     problem.parameters['Theta'] = params["Theta"]
     problem.parameters['X'] = params["Ra"]/params["Pr"]
-
 
     # Defining d/dz of T, u, v and w for reducing our equations to first order
     problem.add_equation("dz(u) - uz = 0")
@@ -109,24 +108,9 @@ def run(data_dir):
 
     state = solver.evaluator.add_file_handler(path.join(data_dir, "state"), sim_dt=params["timestep_analysis"], mode='overwrite')
     state.add_system(solver.state, layout='g')
-    # Derivatives seem to be more accurate when calculated in dedalus, rather than in post
-    # COMMENTED OUT, AS THERE ONLY SEEMS TO BE CONSIDERABLE DIFFERENCE WITH TIME DERIVATIVES
-    # AND THESE TASKS TAKE UP A LOT OF DISK SPACE
-    # state.add_task("dx(u)", layout='g', name='u_dx')
-    # state.add_task("dx(v)", layout='g', name='v_dx')
-    # state.add_task("dx(w)", layout='g', name='w_dx')
-    # state.add_task("dy(u)", layout='g', name='u_dy')
-    # state.add_task("dy(v)", layout='g', name='v_dy')
-    # state.add_task("dy(w)", layout='g', name='w_dy')
-    # state.add_task("dz(u)", layout='g', name='u_dz')
-    # state.add_task("dz(v)", layout='g', name='v_dz')
-    # state.add_task("dz(w)", layout='g', name='w_dz')
-    # state.add_task("dz(dz(u))", layout='g', name='u_dz2')
-    # state.add_task("dz(dz(v))", layout='g', name='v_dz2')
-    # state.add_task("dz(dz(w))", layout='g', name='w_dz2')
     state.add_task("ut", layout='g', name='u_dt')
     state.add_task("vt", layout='g', name='v_dt')
-    
+
     analysis = solver.evaluator.add_file_handler(path.join(data_dir, "analysis"), sim_dt=params["timestep_analysis"], mode='overwrite')
     # Total energy E(t)
     analysis.add_task("integ(integ(integ(0.5 * (u*u + v*v + w*w), 'x'), 'y'), 'z') / (Lx * Ly * Lz)", layout='g', name='E')

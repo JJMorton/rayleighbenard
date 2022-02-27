@@ -24,9 +24,6 @@ def merge(data_dir):
     post.merge_sets(path.join(data_dir, 'state_new.h5'), set_paths, cleanup=True)
     shutil.move(path.join(data_dir, 'state_new.h5'), path.join(data_dir, 'state.h5'))
 
-    shutil.rmtree(path.join(data_dir, "analysis"))
-    shutil.rmtree(path.join(data_dir, "state"))
-
     print(f'Finished merging files, took {time.time() - t0} seconds')
 
 if __name__ == "__main__":
