@@ -3,7 +3,7 @@
 import numpy as np
 from dedalus import public as de
 from matplotlib import pyplot as plt
-import scipy.fft as fft
+import numpy.fft as fft
 import time
 try:
     from perlin_noise import PerlinNoise
