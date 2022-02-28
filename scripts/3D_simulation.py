@@ -107,7 +107,9 @@ def run(data_dir):
     # Prepare directory for simulation results
 
     state = solver.evaluator.add_file_handler(path.join(data_dir, "state"), sim_dt=params["timestep_analysis"], mode='overwrite')
-    state.add_system(solver.state, layout='g')
+    state.add_task("u", layout='g', name='u')
+    state.add_task("v", layout='g', name='v')
+    state.add_task("w", layout='g', name='w')
     state.add_task("ut", layout='g', name='u_dt')
     state.add_task("vt", layout='g', name='v_dt')
 
@@ -117,19 +119,9 @@ def run(data_dir):
     # Vertical heat fluxes F(z, t)
     analysis.add_task("integ(integ(T * w, 'x'), 'y') / (Lx * Ly)", layout='g', name='FluxHeatConv')
     analysis.add_task("integ(integ(-Tz, 'x'), 'y') / (Lx * Ly)", layout='g', name='FluxHeatCond')
-    # Horizontally averaged velocities U(z, t)
-    # Also the coriolis terms in the averaged momentum equations
-    # coriolis_x = -v, coriolis_y = u
-    analysis.add_task("integ(integ(u, 'x'), 'y') / (Lx * Ly)", layout='g', name='MeanU')
-    analysis.add_task("integ(integ(v, 'x'), 'y') / (Lx * Ly)", layout='g', name='MeanV')
-    analysis.add_task("integ(integ(w, 'x'), 'y') / (Lx * Ly)", layout='g', name='MeanW')
-    # Terms of averaged momentum equation q(z, t)
-    analysis.add_task("-integ(integ(dz(uz) / (Ta**0.5 * sin(Theta)), 'x'), 'y') / (Lx * Ly)", layout='g', name='ViscousX')
-    analysis.add_task("-integ(integ(dz(vz) / (Ta**0.5 * sin(Theta)), 'x'), 'y') / (Lx * Ly)", layout='g', name='ViscousY')
-    analysis.add_task("integ(integ(ut / (Ta**0.5 * sin(Theta)), 'x'), 'y') / (Lx * Ly)", layout='g', name='TemporalX')
-    analysis.add_task("integ(integ(vt / (Ta**0.5 * sin(Theta)), 'x'), 'y') / (Lx * Ly)", layout='g', name='TemporalY')
-    analysis.add_task("integ(integ(v + (dz(uz) - ut) / (Ta**0.5 * sin(Theta)), 'x'), 'y') / (Lx * Ly)", layout='g', name='StressX')
-    analysis.add_task("integ(integ(-u + (dz(vz) - vt) / (Ta**0.5 * sin(Theta)), 'x'), 'y') / (Lx * Ly)", layout='g', name='StressY')
+    # Temperature slices
+    analysis.add_task("interp(T, z=0.95*Lz)", layout='g', name='Ttop')
+    analysis.add_task("interp(T, y=0)", layout='g', name='Tmid')
     
     ##################################################
     # Configure CFL to adjust timestep dynamically
