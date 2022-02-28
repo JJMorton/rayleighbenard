@@ -217,337 +217,336 @@ def kspace_highpass(data, axes, bases, lambda_cutoff, interp=False):
 #======================================================
 # FROM HERE ONWARDS,
 # FUNCTIONS FOR TESTING THE INTERPOLATION AND FILTERING
+# def time_execution():
 
-def time_execution():
+#     def run_test(res, dims, interpolate):
+#         """
+#         Plots a test case of the filtering functions in this file
+#         """
 
-    def run_test(res, dims, interpolate):
-        """
-        Plots a test case of the filtering functions in this file
-        """
+#         grid_shape = tuple([res] * dims)
+#         L = 1
+#         wavelength_cutoff = L / 2 # Radius in wavelength-space
 
-        grid_shape = tuple([res] * dims)
-        L = 1
-        wavelength_cutoff = L / 2 # Radius in wavelength-space
+#         print(f"  Timing filtering of a {'x'.join([str(res)] * dims)} array with" + ("" if interpolate else "out") + " interpolation...")
 
-        print(f"  Timing filtering of a {'x'.join([str(res)] * dims)} array with" + ("" if interpolate else "out") + " interpolation...")
+#         zaxis = de.Chebyshev('z', res, interval=(0, L)).grid(scale=1)
+#         xaxis = de.Fourier('x', res, interval=(0, L)).grid(scale=1)
+#         axes = [xaxis] * dims
+#         axes[-1] = zaxis
+#         data = np.ones(grid_shape) * np.sin(4 * np.pi * zaxis)
 
-        zaxis = de.Chebyshev('z', res, interval=(0, L)).grid(scale=1)
-        xaxis = de.Fourier('x', res, interval=(0, L)).grid(scale=1)
-        axes = [xaxis] * dims
-        axes[-1] = zaxis
-        data = np.ones(grid_shape) * np.sin(4 * np.pi * zaxis)
+#         start_time = time.time()
+#         data_filter_low = kspace_lowpass(data, tuple(range(dims)), axes, wavelength_cutoff, interp=interpolate)
+#         duration_low = np.round(time.time() - start_time, 3)
 
-        start_time = time.time()
-        data_filter_low = kspace_lowpass(data, tuple(range(dims)), axes, wavelength_cutoff, interp=interpolate)
-        duration_low = np.round(time.time() - start_time, 3)
+#         start_time = time.time()
+#         data_filter_high = kspace_highpass(data, tuple(range(dims)), axes, wavelength_cutoff, interp=interpolate)
+#         duration_high = np.round(time.time() - start_time, 3)
 
-        start_time = time.time()
-        data_filter_high = kspace_highpass(data, tuple(range(dims)), axes, wavelength_cutoff, interp=interpolate)
-        duration_high = np.round(time.time() - start_time, 3)
+#         return duration_low, duration_high
 
-        return duration_low, duration_high
+#     gs = plt.GridSpec(1, 4)
+#     fig = plt.figure(figsize=(gs.ncols * 4, gs.nrows * 3))
+#     res = np.arange(5, 100, 5)
+#     res4d = np.arange(5, 55, 5)
+#     print("Running tests for 2 dimensions")
+#     dims2 = np.array([ np.mean(run_test(r, 2, interpolate=True)) for r in res ])
+#     print("Running tests for 3 dimensions")
+#     dims3 = np.array([ np.mean(run_test(r, 3, interpolate=True)) for r in res ])
+#     print("Running tests for 4 dimensions")
+#     dims4 = np.array([ np.mean(run_test(r, 4, interpolate=True)) for r in res4d ])
 
-    gs = plt.GridSpec(1, 4)
-    fig = plt.figure(figsize=(gs.ncols * 4, gs.nrows * 3))
-    res = np.arange(5, 100, 5)
-    res4d = np.arange(5, 55, 5)
-    print("Running tests for 2 dimensions")
-    dims2 = np.array([ np.mean(run_test(r, 2, interpolate=True)) for r in res ])
-    print("Running tests for 3 dimensions")
-    dims3 = np.array([ np.mean(run_test(r, 3, interpolate=True)) for r in res ])
-    print("Running tests for 4 dimensions")
-    dims4 = np.array([ np.mean(run_test(r, 4, interpolate=True)) for r in res4d ])
+#     print("  Calculating polyfit for 3D...")
 
-    print("  Calculating polyfit for 3D...")
+#     poly = np.polyfit(res, dims3, deg=3)
+#     print(f"  coeffs = {poly}")
+#     polyx = np.linspace(0, 256, 256)
+#     polyy = poly[0] * polyx**3 + poly[1] * polyx**2 + poly[2] * polyx + poly[3]
 
-    poly = np.polyfit(res, dims3, deg=3)
-    print(f"  coeffs = {poly}")
-    polyx = np.linspace(0, 256, 256)
-    polyy = poly[0] * polyx**3 + poly[1] * polyx**2 + poly[2] * polyx + poly[3]
+#     ax = fig.add_subplot(gs[0, 0])
+#     ax.scatter(res, dims2, marker='x')
+#     ax.set_xlabel("Resolution")
+#     ax.set_ylabel("Time taken (s)")
+#     ax.set_title("2 dimensions")
 
-    ax = fig.add_subplot(gs[0, 0])
-    ax.scatter(res, dims2, marker='x')
-    ax.set_xlabel("Resolution")
-    ax.set_ylabel("Time taken (s)")
-    ax.set_title("2 dimensions")
+#     ax = fig.add_subplot(gs[0, 1])
+#     ax.scatter(res, dims3, marker='x')
+#     ax.plot(polyx, polyy, label="Cubic fit")
+#     ax.axvline(polyx[-1], ls='--')
+#     ax.axhline(polyy[-1], ls='--', label=f"{np.round(polyy[-1], 3)}s")
+#     ax.set_xlabel("Resolution")
+#     ax.set_ylabel("Time taken (s)")
+#     ax.legend()
+#     ax.set_title("3 dimensions")
 
-    ax = fig.add_subplot(gs[0, 1])
-    ax.scatter(res, dims3, marker='x')
-    ax.plot(polyx, polyy, label="Cubic fit")
-    ax.axvline(polyx[-1], ls='--')
-    ax.axhline(polyy[-1], ls='--', label=f"{np.round(polyy[-1], 3)}s")
-    ax.set_xlabel("Resolution")
-    ax.set_ylabel("Time taken (s)")
-    ax.legend()
-    ax.set_title("3 dimensions")
+#     ax = fig.add_subplot(gs[0, 2])
+#     ax.scatter(res4d, dims4, marker='x')
+#     ax.set_xlabel("Resolution")
+#     ax.set_ylabel("Time taken (s)")
+#     ax.set_title("4 dimensions")
 
-    ax = fig.add_subplot(gs[0, 2])
-    ax.scatter(res4d, dims4, marker='x')
-    ax.set_xlabel("Resolution")
-    ax.set_ylabel("Time taken (s)")
-    ax.set_title("4 dimensions")
+#     ax = fig.add_subplot(gs[0, 3])
+#     ax.plot(res, res, ls='--', color='lightgray')
+#     ax.scatter(res4d, dims4/dims3[:len(res4d)], label="4-D / 3-D", marker='x')
+#     ax.scatter(res, dims3/dims2, label="3-D / 2-D", marker='x')
+#     ax.legend()
+#     ax.set_xlabel("Resolution")
+#     ax.set_ylabel("Ratio of time taken")
+#     ax.set_title("Less than linear --> better\nin higher dimensions")
 
-    ax = fig.add_subplot(gs[0, 3])
-    ax.plot(res, res, ls='--', color='lightgray')
-    ax.scatter(res4d, dims4/dims3[:len(res4d)], label="4-D / 3-D", marker='x')
-    ax.scatter(res, dims3/dims2, label="3-D / 2-D", marker='x')
-    ax.legend()
-    ax.set_xlabel("Resolution")
-    ax.set_ylabel("Ratio of time taken")
-    ax.set_title("Less than linear --> better\nin higher dimensions")
+#     fig.suptitle("Time taken to interpolate + filter arrays with different resolutions & dimensions")
 
-    fig.suptitle("Time taken to interpolate + filter arrays with different resolutions & dimensions")
+#     plt.tight_layout()
+#     plt.show()
 
-    plt.tight_layout()
-    plt.show()
+# def plot_test_case():
+#     """
+#     Plots a test case of the filtering functions in this file
+#     """
 
-def plot_test_case():
-    """
-    Plots a test case of the filtering functions in this file
-    """
+#     print("Running filtering test case")
 
-    print("Running filtering test case")
+#     print("  Creating data...")
+#     # Use non-equal lengths and resolutions to make sure everything works with this
+#     Lx = 1
+#     Lz = 1
+#     resX = 70
+#     resZ = 50
+#     wavelength_cutoff = Lx / 2 # Radius in wavelength-space
 
-    print("  Creating data...")
-    # Use non-equal lengths and resolutions to make sure everything works with this
-    Lx = 1
-    Lz = 1
-    resX = 70
-    resZ = 50
-    wavelength_cutoff = Lx / 2 # Radius in wavelength-space
+#     x = np.linspace(0, Lx, resX)
+#     z_cheb = de.Chebyshev('z', resZ, interval=(0, Lz)).grid(scale=1)
 
-    x = np.linspace(0, Lx, resX)
-    z_cheb = de.Chebyshev('z', resZ, interval=(0, Lz)).grid(scale=1)
+#     data = np.sin(4 * np.pi * np.add.outer(x, np.zeros(len(z_cheb)))) + np.sin(8 * np.pi * np.add.outer(np.zeros(len(x)), z_cheb))
+#     (x, z_lin) = create_linear_bases((x, z_cheb))
+#     data_interp = interp_to_basis(data, axis=-1, src=de.Chebyshev, dest=de.Fourier)
 
-    data = np.sin(4 * np.pi * np.add.outer(x, np.zeros(len(z_cheb)))) + np.sin(8 * np.pi * np.add.outer(np.zeros(len(x)), z_cheb))
-    (x, z_lin) = create_linear_bases((x, z_cheb))
-    data_interp = interp_to_basis(data, axis=-1, src=de.Chebyshev, dest=de.Fourier)
+#     print("  Calculating transforms...")
+#     data_fft, (kx, kz) = fft_nd(data, (0, 1), (x, z_lin))
+#     data_fft_abs = np.abs(data_fft)
+#     data_fft_inv = fft_nd_inverse(data_fft, (0, 1))
+#     data_filter_low = kspace_lowpass(data, (0, 1), (x, z_cheb), wavelength_cutoff, interp=False)
+#     data_filter_high = kspace_highpass(data, (0, 1), (x, z_cheb), wavelength_cutoff, interp=False)
 
-    print("  Calculating transforms...")
-    data_fft, (kx, kz) = fft_nd(data, (0, 1), (x, z_lin))
-    data_fft_abs = np.abs(data_fft)
-    data_fft_inv = fft_nd_inverse(data_fft, (0, 1))
-    data_filter_low = kspace_lowpass(data, (0, 1), (x, z_cheb), wavelength_cutoff, interp=False)
-    data_filter_high = kspace_highpass(data, (0, 1), (x, z_cheb), wavelength_cutoff, interp=False)
+#     data_interp_fft, (kx, kz) = fft_nd(data_interp, (0, 1), (x, z_lin))
+#     data_interp_fft_abs = np.abs(data_interp_fft)
+#     data_interp_fft_inv = fft_nd_inverse(data_interp_fft, (0, 1))
+#     data_interp_filter_low = kspace_lowpass(data, (0, 1), (x, z_cheb), wavelength_cutoff, interp=True)
+#     data_interp_filter_high = kspace_highpass(data, (0, 1), (x, z_cheb), wavelength_cutoff, interp=True)
 
-    data_interp_fft, (kx, kz) = fft_nd(data_interp, (0, 1), (x, z_lin))
-    data_interp_fft_abs = np.abs(data_interp_fft)
-    data_interp_fft_inv = fft_nd_inverse(data_interp_fft, (0, 1))
-    data_interp_filter_low = kspace_lowpass(data, (0, 1), (x, z_cheb), wavelength_cutoff, interp=True)
-    data_interp_filter_high = kspace_highpass(data, (0, 1), (x, z_cheb), wavelength_cutoff, interp=True)
+#     print("  Plotting...")
+#     gs = plt.GridSpec(2, 5)
+#     fig = plt.figure(figsize=(gs.ncols * 4, gs.nrows * 3))
+#     fig.suptitle(
+#         "High- and low-pass filtering with and without interpolation.\n" +
+#         "The first row shows filtering the simple (but incorrect) way, simply doing the FFT using a linear basis instead of the Chebyshev one.\n" +
+#         "The second row is the same process, but the z-axis is interpolated into a linear basis first.\n" +
+#         "Note the noisy (and incorrect) frequencies for the z-axis in the first case, and how they're mostly fixed in the second."
+#     )
 
-    print("  Plotting...")
-    gs = plt.GridSpec(2, 5)
-    fig = plt.figure(figsize=(gs.ncols * 4, gs.nrows * 3))
-    fig.suptitle(
-        "High- and low-pass filtering with and without interpolation.\n" +
-        "The first row shows filtering the simple (but incorrect) way, simply doing the FFT using a linear basis instead of the Chebyshev one.\n" +
-        "The second row is the same process, but the z-axis is interpolated into a linear basis first.\n" +
-        "Note the noisy (and incorrect) frequencies for the z-axis in the first case, and how they're mostly fixed in the second."
-    )
+#     ##################################
+#     # 1st row, original data, FFT of original data w.r.t. linear basis (clearly wrong approach)
 
-    ##################################
-    # 1st row, original data, FFT of original data w.r.t. linear basis (clearly wrong approach)
+#     ax = fig.add_subplot(gs[0, 0])
+#     mesh = ax.pcolormesh(x, z_cheb, data.T, shading='nearest')
+#     plt.colorbar(mesh)
+#     ax.set_title("Original data: sin(8πz/Lz) + sin(2πx/Lx)")
+#     ax.set_xlabel("x")
+#     ax.set_ylabel("z (Chebyshev)")
 
-    ax = fig.add_subplot(gs[0, 0])
-    mesh = ax.pcolormesh(x, z_cheb, data.T, shading='nearest')
-    plt.colorbar(mesh)
-    ax.set_title("Original data: sin(8πz/Lz) + sin(2πx/Lx)")
-    ax.set_xlabel("x")
-    ax.set_ylabel("z (Chebyshev)")
+#     ax = fig.add_subplot(gs[0, 1])
+#     mesh = ax.pcolormesh(kx, kz, data_fft_abs.T, shading='nearest')
+#     plt.colorbar(mesh)
+#     ax.set_title("FFT (magnitude) using linear basis")
+#     ax.set_xlabel("kx")
+#     ax.set_ylabel("kz")
 
-    ax = fig.add_subplot(gs[0, 1])
-    mesh = ax.pcolormesh(kx, kz, data_fft_abs.T, shading='nearest')
-    plt.colorbar(mesh)
-    ax.set_title("FFT (magnitude) using linear basis")
-    ax.set_xlabel("kx")
-    ax.set_ylabel("kz")
+#     ax = fig.add_subplot(gs[0, 2])
+#     mesh = ax.pcolormesh(x, z_cheb, (data_fft_inv - data).T, shading='nearest')
+#     plt.colorbar(mesh)
+#     ax.set_title("Inverse of FFT minus untransformed")
+#     ax.set_xlabel("x")
+#     ax.set_ylabel("z (Chebyshev)")
 
-    ax = fig.add_subplot(gs[0, 2])
-    mesh = ax.pcolormesh(x, z_cheb, (data_fft_inv - data).T, shading='nearest')
-    plt.colorbar(mesh)
-    ax.set_title("Inverse of FFT minus untransformed")
-    ax.set_xlabel("x")
-    ax.set_ylabel("z (Chebyshev)")
+#     # ax = fig.add_subplot(gs[1, 0])
+#     # mesh = ax.pcolormesh(kx, kz, np.int32(lowpass_mask), shading='nearest')
+#     # plt.colorbar(mesh)
+#     # ax.set_title("k-space lowpass mask")
 
-    # ax = fig.add_subplot(gs[1, 0])
-    # mesh = ax.pcolormesh(kx, kz, np.int32(lowpass_mask), shading='nearest')
-    # plt.colorbar(mesh)
-    # ax.set_title("k-space lowpass mask")
+#     # ax = fig.add_subplot(gs[1, 1])
+#     # mesh = ax.pcolormesh(kx, kz, np.int32(highpass_mask), shading='nearest')
+#     # plt.colorbar(mesh)
+#     # ax.set_title("k-space highpass mask")
 
-    # ax = fig.add_subplot(gs[1, 1])
-    # mesh = ax.pcolormesh(kx, kz, np.int32(highpass_mask), shading='nearest')
-    # plt.colorbar(mesh)
-    # ax.set_title("k-space highpass mask")
+#     ax = fig.add_subplot(gs[0, 3])
+#     mesh = ax.pcolormesh(x, z_cheb, data_filter_low.T, shading='nearest')
+#     plt.colorbar(mesh)
+#     ax.set_title("lowpass filtered")
+#     ax.set_xlabel("x")
+#     ax.set_ylabel("z (Chebyshev)")
 
-    ax = fig.add_subplot(gs[0, 3])
-    mesh = ax.pcolormesh(x, z_cheb, data_filter_low.T, shading='nearest')
-    plt.colorbar(mesh)
-    ax.set_title("lowpass filtered")
-    ax.set_xlabel("x")
-    ax.set_ylabel("z (Chebyshev)")
+#     ax = fig.add_subplot(gs[0, 4])
+#     mesh = ax.pcolormesh(x, z_cheb, data_filter_high.T, shading='nearest')
+#     plt.colorbar(mesh)
+#     ax.set_title("highpass filtered")
+#     ax.set_xlabel("x")
+#     ax.set_ylabel("z (Chebyshev)")
 
-    ax = fig.add_subplot(gs[0, 4])
-    mesh = ax.pcolormesh(x, z_cheb, data_filter_high.T, shading='nearest')
-    plt.colorbar(mesh)
-    ax.set_title("highpass filtered")
-    ax.set_xlabel("x")
-    ax.set_ylabel("z (Chebyshev)")
+#     ##################################
+#     # 1st row, interpolated data, FFT w.r.t. z coordinates
 
-    ##################################
-    # 1st row, interpolated data, FFT w.r.t. z coordinates
+#     ax = fig.add_subplot(gs[1, 0])
+#     mesh = ax.pcolormesh(x, z_lin, data_interp.T, shading='nearest')
+#     plt.colorbar(mesh)
+#     ax.set_title("Interpolated data")
+#     ax.set_xlabel("x")
+#     ax.set_ylabel("z (Linear)")
 
-    ax = fig.add_subplot(gs[1, 0])
-    mesh = ax.pcolormesh(x, z_lin, data_interp.T, shading='nearest')
-    plt.colorbar(mesh)
-    ax.set_title("Interpolated data")
-    ax.set_xlabel("x")
-    ax.set_ylabel("z (Linear)")
+#     ax = fig.add_subplot(gs[1, 1])
+#     mesh = ax.pcolormesh(kx, kz, data_interp_fft_abs.T, shading='nearest')
+#     plt.colorbar(mesh)
+#     ax.set_title("FFT (magnitude)")
+#     ax.set_xlabel("kx")
+#     ax.set_ylabel("kz")
 
-    ax = fig.add_subplot(gs[1, 1])
-    mesh = ax.pcolormesh(kx, kz, data_interp_fft_abs.T, shading='nearest')
-    plt.colorbar(mesh)
-    ax.set_title("FFT (magnitude)")
-    ax.set_xlabel("kx")
-    ax.set_ylabel("kz")
+#     ax = fig.add_subplot(gs[1, 2])
+#     mesh = ax.pcolormesh(x, z_lin, (data_interp_fft_inv - data_interp).T, shading='nearest')
+#     plt.colorbar(mesh)
+#     ax.set_title("Inverse of FFT minus untransformed")
+#     ax.set_xlabel("x")
+#     ax.set_ylabel("z (Linear)")
 
-    ax = fig.add_subplot(gs[1, 2])
-    mesh = ax.pcolormesh(x, z_lin, (data_interp_fft_inv - data_interp).T, shading='nearest')
-    plt.colorbar(mesh)
-    ax.set_title("Inverse of FFT minus untransformed")
-    ax.set_xlabel("x")
-    ax.set_ylabel("z (Linear)")
+#     ax = fig.add_subplot(gs[1, 3])
+#     mesh = ax.pcolormesh(x, z_lin, data_interp_filter_low.T, shading='nearest')
+#     plt.colorbar(mesh)
+#     ax.set_title("lowpass filtered")
+#     ax.set_xlabel("x")
+#     ax.set_ylabel("z (Linear)")
 
-    ax = fig.add_subplot(gs[1, 3])
-    mesh = ax.pcolormesh(x, z_lin, data_interp_filter_low.T, shading='nearest')
-    plt.colorbar(mesh)
-    ax.set_title("lowpass filtered")
-    ax.set_xlabel("x")
-    ax.set_ylabel("z (Linear)")
+#     ax = fig.add_subplot(gs[1, 4])
+#     mesh = ax.pcolormesh(x, z_lin, data_interp_filter_high.T, shading='nearest')
+#     plt.colorbar(mesh)
+#     ax.set_title("highpass filtered")
+#     ax.set_xlabel("x")
+#     ax.set_ylabel("z (Linear)")
 
-    ax = fig.add_subplot(gs[1, 4])
-    mesh = ax.pcolormesh(x, z_lin, data_interp_filter_high.T, shading='nearest')
-    plt.colorbar(mesh)
-    ax.set_title("highpass filtered")
-    ax.set_xlabel("x")
-    ax.set_ylabel("z (Linear)")
+#     fig.tight_layout()
+#     plt.show()
 
-    fig.tight_layout()
-    plt.show()
+# def test_dedalus_interp():
+#     print("Running interpolation test case")
+#     Lx = 5
+#     Lz = 2
+#     gs = plt.GridSpec(3, 3)
+#     fig = plt.figure(figsize=(gs.ncols * 4, gs.nrows * 3))
+#     fig.suptitle("Interpolation of 3-D grids from Chebyshev to Fourier z axis\nPlotted averaged over y")
 
-def test_dedalus_interp():
-    print("Running interpolation test case")
-    Lx = 5
-    Lz = 2
-    gs = plt.GridSpec(3, 3)
-    fig = plt.figure(figsize=(gs.ncols * 4, gs.nrows * 3))
-    fig.suptitle("Interpolation of 3-D grids from Chebyshev to Fourier z axis\nPlotted averaged over y")
+#     res = 50
+#     res_z_interp = 100
 
-    res = 50
-    res_z_interp = 100
+#     x = y = de.Fourier('x', res, interval=(0, Lx)).grid()
+#     z = de.Chebyshev('z', res, interval=(0, Lz)).grid()
+#     z_lin = de.Fourier('z', res_z_interp, interval=(0, Lz)).grid()
 
-    x = y = de.Fourier('x', res, interval=(0, Lx)).grid()
-    z = de.Chebyshev('z', res, interval=(0, Lz)).grid()
-    z_lin = de.Fourier('z', res_z_interp, interval=(0, Lz)).grid()
+#     arr = np.zeros((res, res, res))
+#     if PerlinNoise is not None:
+#         print("  Generating 3-D perlin noise for testing...")
+#         noise = PerlinNoise(octaves=2, seed=np.random.rand() * 9999999)
+#         for i in range(res):
+#             for j in range(res):
+#                 for k in range(res):
+#                     arr[i, j, k] = noise([x[i], y[j], z[k]])
+#     else:
+#         xgrid = np.add.outer(np.add.outer(x, empty), empty)
+#         ygrid = np.add.outer(np.add.outer(empty, y), empty)
+#         zgrid = np.add.outer(np.add.outer(empty, empty), z)
+#         arr = np.sin(8 * np.pi * zgrid / L) + np.sin(4 * np.pi * xgrid / L)
 
-    arr = np.zeros((res, res, res))
-    if PerlinNoise is not None:
-        print("  Generating 3-D perlin noise for testing...")
-        noise = PerlinNoise(octaves=2, seed=np.random.rand() * 9999999)
-        for i in range(res):
-            for j in range(res):
-                for k in range(res):
-                    arr[i, j, k] = noise([x[i], y[j], z[k]])
-    else:
-        xgrid = np.add.outer(np.add.outer(x, empty), empty)
-        ygrid = np.add.outer(np.add.outer(empty, y), empty)
-        zgrid = np.add.outer(np.add.outer(empty, empty), z)
-        arr = np.sin(8 * np.pi * zgrid / L) + np.sin(4 * np.pi * xgrid / L)
+#     arr_dz = np.gradient(arr, z, axis=-1, edge_order=2)
+#     arr_dz2 = np.gradient(arr_dz, z, axis=-1, edge_order=2)
 
-    arr_dz = np.gradient(arr, z, axis=-1, edge_order=2)
-    arr_dz2 = np.gradient(arr_dz, z, axis=-1, edge_order=2)
+#     print("  Interpolating...")
+#     start_time = time.time()
+#     arr_interp = interp_to_basis(arr, axis=-1, src=de.Chebyshev, dest=de.Fourier, dest_res=res_z_interp)
+#     duration = time.time() - start_time
+#     arr_interp_dz = np.gradient(arr_interp, z_lin, axis=-1, edge_order=2)
+#     arr_interp_dz2 = np.gradient(arr_interp_dz, z_lin, axis=-1, edge_order=2)
 
-    print("  Interpolating...")
-    start_time = time.time()
-    arr_interp = interp_to_basis(arr, axis=-1, src=de.Chebyshev, dest=de.Fourier, dest_res=res_z_interp)
-    duration = time.time() - start_time
-    arr_interp_dz = np.gradient(arr_interp, z_lin, axis=-1, edge_order=2)
-    arr_interp_dz2 = np.gradient(arr_interp_dz, z_lin, axis=-1, edge_order=2)
+#     print("  Interpolating back...")
+#     arr_interp2 = interp_to_basis(arr_interp, axis=-1, src=de.Fourier, dest=de.Chebyshev, dest_res=res)
+#     arr_interp2_dz = np.gradient(arr_interp2, z, axis=-1, edge_order=2)
+#     arr_interp2_dz2 = np.gradient(arr_interp2_dz, z, axis=-1, edge_order=2)
 
-    print("  Interpolating back...")
-    arr_interp2 = interp_to_basis(arr_interp, axis=-1, src=de.Fourier, dest=de.Chebyshev, dest_res=res)
-    arr_interp2_dz = np.gradient(arr_interp2, z, axis=-1, edge_order=2)
-    arr_interp2_dz2 = np.gradient(arr_interp2_dz, z, axis=-1, edge_order=2)
+#     ax = fig.add_subplot(gs[0, 0])
+#     mesh = ax.pcolormesh(x, z, np.mean(arr, axis=1).T, shading='nearest')
+#     plt.colorbar(mesh)
+#     ax.set_title(f"Original data ({res}x{res}x{res})")
+#     ax.set_xlabel("x")
+#     ax.set_ylabel("z (Chebyshev)")
 
-    ax = fig.add_subplot(gs[0, 0])
-    mesh = ax.pcolormesh(x, z, np.mean(arr, axis=1).T, shading='nearest')
-    plt.colorbar(mesh)
-    ax.set_title(f"Original data ({res}x{res}x{res})")
-    ax.set_xlabel("x")
-    ax.set_ylabel("z (Chebyshev)")
+#     ax = fig.add_subplot(gs[0, 1])
+#     mesh = ax.pcolormesh(x, z, np.mean(arr_dz, axis=1).T, shading='nearest')
+#     plt.colorbar(mesh)
+#     ax.set_title(f"dz(Original data)")
+#     ax.set_xlabel("x")
+#     ax.set_ylabel("z (Chebyshev)")
 
-    ax = fig.add_subplot(gs[0, 1])
-    mesh = ax.pcolormesh(x, z, np.mean(arr_dz, axis=1).T, shading='nearest')
-    plt.colorbar(mesh)
-    ax.set_title(f"dz(Original data)")
-    ax.set_xlabel("x")
-    ax.set_ylabel("z (Chebyshev)")
+#     ax = fig.add_subplot(gs[0, 2])
+#     mesh = ax.pcolormesh(x, z, np.mean(arr_dz2, axis=1).T, shading='nearest')
+#     plt.colorbar(mesh)
+#     ax.set_title(f"dz^2(Original data)")
+#     ax.set_xlabel("x")
+#     ax.set_ylabel("z (Chebyshev)")
 
-    ax = fig.add_subplot(gs[0, 2])
-    mesh = ax.pcolormesh(x, z, np.mean(arr_dz2, axis=1).T, shading='nearest')
-    plt.colorbar(mesh)
-    ax.set_title(f"dz^2(Original data)")
-    ax.set_xlabel("x")
-    ax.set_ylabel("z (Chebyshev)")
+#     ax = fig.add_subplot(gs[1, 0])
+#     mesh = ax.pcolormesh(x, z_lin, np.mean(arr_interp, axis=1).T, shading='nearest')
+#     plt.colorbar(mesh)
+#     ax.set_title(f"Interpolated to ({res}x{res}x{res_z_interp}) in {np.round(duration, 3)}s")
+#     ax.set_xlabel("x")
+#     ax.set_ylabel("z (Fourier)")
 
-    ax = fig.add_subplot(gs[1, 0])
-    mesh = ax.pcolormesh(x, z_lin, np.mean(arr_interp, axis=1).T, shading='nearest')
-    plt.colorbar(mesh)
-    ax.set_title(f"Interpolated to ({res}x{res}x{res_z_interp}) in {np.round(duration, 3)}s")
-    ax.set_xlabel("x")
-    ax.set_ylabel("z (Fourier)")
+#     ax = fig.add_subplot(gs[1, 1])
+#     mesh = ax.pcolormesh(x, z_lin, np.mean(arr_interp_dz, axis=1).T, shading='nearest')
+#     plt.colorbar(mesh)
+#     ax.set_title(f"dz(Interpolated)")
+#     ax.set_xlabel("x")
+#     ax.set_ylabel("z (Fourier)")
 
-    ax = fig.add_subplot(gs[1, 1])
-    mesh = ax.pcolormesh(x, z_lin, np.mean(arr_interp_dz, axis=1).T, shading='nearest')
-    plt.colorbar(mesh)
-    ax.set_title(f"dz(Interpolated)")
-    ax.set_xlabel("x")
-    ax.set_ylabel("z (Fourier)")
+#     ax = fig.add_subplot(gs[1, 2])
+#     mesh = ax.pcolormesh(x, z_lin, np.mean(arr_interp_dz2, axis=1).T, shading='nearest')
+#     plt.colorbar(mesh)
+#     ax.set_title(f"dz^2(Interpolated)")
+#     ax.set_xlabel("x")
+#     ax.set_ylabel("z (Fourier)")
 
-    ax = fig.add_subplot(gs[1, 2])
-    mesh = ax.pcolormesh(x, z_lin, np.mean(arr_interp_dz2, axis=1).T, shading='nearest')
-    plt.colorbar(mesh)
-    ax.set_title(f"dz^2(Interpolated)")
-    ax.set_xlabel("x")
-    ax.set_ylabel("z (Fourier)")
+#     ax = fig.add_subplot(gs[2, 0])
+#     mesh = ax.pcolormesh(x, z, np.mean(arr_interp2 - arr, axis=1).T, shading='nearest')
+#     plt.colorbar(mesh)
+#     ax.set_title(f"Un-interpolated - Original")
+#     ax.set_xlabel("x")
+#     ax.set_ylabel("z (Chebyshev)")
 
-    ax = fig.add_subplot(gs[2, 0])
-    mesh = ax.pcolormesh(x, z, np.mean(arr_interp2 - arr, axis=1).T, shading='nearest')
-    plt.colorbar(mesh)
-    ax.set_title(f"Un-interpolated - Original")
-    ax.set_xlabel("x")
-    ax.set_ylabel("z (Chebyshev)")
+#     ax = fig.add_subplot(gs[2, 1])
+#     mesh = ax.pcolormesh(x, z, np.mean(arr_interp2_dz - arr_dz, axis=1).T, shading='nearest')
+#     plt.colorbar(mesh)
+#     ax.set_title(f"dz(Un-interpolated) - dz(Original)")
+#     ax.set_xlabel("x")
+#     ax.set_ylabel("z (Chebyshev)")
 
-    ax = fig.add_subplot(gs[2, 1])
-    mesh = ax.pcolormesh(x, z, np.mean(arr_interp2_dz - arr_dz, axis=1).T, shading='nearest')
-    plt.colorbar(mesh)
-    ax.set_title(f"dz(Un-interpolated) - dz(Original)")
-    ax.set_xlabel("x")
-    ax.set_ylabel("z (Chebyshev)")
+#     ax = fig.add_subplot(gs[2, 2])
+#     mesh = ax.pcolormesh(x, z, np.mean(arr_interp2_dz2 - arr_dz2, axis=1).T, shading='nearest')
+#     plt.colorbar(mesh)
+#     ax.set_title(f"dz^2(Un-interpolated) - dz^2(Original)")
+#     ax.set_xlabel("x")
+#     ax.set_ylabel("z (Chebyshev)")
 
-    ax = fig.add_subplot(gs[2, 2])
-    mesh = ax.pcolormesh(x, z, np.mean(arr_interp2_dz2 - arr_dz2, axis=1).T, shading='nearest')
-    plt.colorbar(mesh)
-    ax.set_title(f"dz^2(Un-interpolated) - dz^2(Original)")
-    ax.set_xlabel("x")
-    ax.set_ylabel("z (Chebyshev)")
+#     plt.tight_layout()
+#     plt.show()
 
-    plt.tight_layout()
-    plt.show()
-
-# If you run this script as a program from the command line, run all the tests
+# # If you run this script as a program from the command line, run all the tests
 if __name__ == '__main__':
-    plt.rcParams.update({'font.size': 8})
-    plot_test_case()
-    test_dedalus_interp()
-    time_execution() 
+#     plt.rcParams.update({'font.size': 8})
+#     plot_test_case()
+#     test_dedalus_interp()
+#     time_execution() 
