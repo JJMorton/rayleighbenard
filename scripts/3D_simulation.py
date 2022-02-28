@@ -164,7 +164,7 @@ def run(data_dir):
                 else:
                     logger.info('No clear end point defined. Simulation may run perpetually.')
 
-            if (solver.iteration-1) % 100 == 0:
+            if (solver.iteration-1) % 1000 == 0:
                 # Prints progress information include maximum Reynolds number every 100 iterations
                 logger.info('Iteration: %i, Time: %e, dt: %e' %(solver.iteration, solver.sim_time, dt))
                 logger.info('Max Re = %f' %flow.max('Re'))  
