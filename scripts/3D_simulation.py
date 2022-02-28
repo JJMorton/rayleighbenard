@@ -110,8 +110,6 @@ def run(data_dir):
     state.add_task("u", layout='g', name='u')
     state.add_task("v", layout='g', name='v')
     state.add_task("w", layout='g', name='w')
-    state.add_task("ut", layout='g', name='u_dt')
-    state.add_task("vt", layout='g', name='v_dt')
 
     analysis = solver.evaluator.add_file_handler(path.join(data_dir, "analysis"), sim_dt=params["timestep_analysis"], mode='overwrite')
     # Total energy E(t)
