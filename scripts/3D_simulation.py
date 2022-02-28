@@ -35,9 +35,9 @@ def run(data_dir):
     problem = de.IVP(domain,variables=['T','p','u','v','w','Tz','uz','vz','wz','ut','vt'])
 
     # Defining model parameters
-    problem.parameters['Lx'] = params["resX"]
-    problem.parameters['Ly'] = params["resY"]
-    problem.parameters['Lz'] = params["resZ"]
+    problem.parameters['Lx'] = params["Lx"]
+    problem.parameters['Ly'] = params["Ly"]
+    problem.parameters['Lz'] = params["Lz"]
     problem.parameters['Ra'] = params["Ra"]
     problem.parameters['Pr'] = params["Pr"]
     problem.parameters['Ta'] = params["Ta"]
