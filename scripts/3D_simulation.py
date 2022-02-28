@@ -187,4 +187,3 @@ if __name__ == "__main__":
         exit(1)
     data_dir = sys.argv[1]
     run(data_dir)
-    merge(data_dir)
