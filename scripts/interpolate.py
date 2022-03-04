@@ -16,21 +16,19 @@ import filtering
 import logging
 logger = logging.getLogger(__name__)
 
-def main(data_dir):
+def interp(data_dir, f):
 
     # Read parameters from file
     params = utils.read_params(data_dir)
 
     with h5py.File(path.join(data_dir, 'state.h5'), mode='r') as state_file:
 
-        dims = state_file['tasks']['u'].dims
+        dims = state_file['tasks'][f].dims
         num_dims = len(dims) - 1
 
         # Read in original un-interpolated fields and the dimension scales
         logger.info("Reading fields from hdf5 file...")
-        u = np.array(state_file['tasks']['u'])
-        v = np.array(state_file['tasks']['v']) if num_dims == 3 else None
-        w = np.array(state_file['tasks']['w'])
+        vel = np.array(state_file['tasks'][f])
 
         t = np.array(dims[0]["sim_time"])
         x = np.array(dims[1][0])
@@ -38,9 +36,7 @@ def main(data_dir):
         z = np.array(dims[3 if num_dims == 3 else 2][0])
 
         # Swap the x and z axes of the velocities we read from the file, so they match our domain
-        u = np.swapaxes(u, 1, -1)
-        v = np.swapaxes(v, 1, -1)
-        w = np.swapaxes(w, 1, -1)
+        vel = np.swapaxes(vel, 1, -1)
 
         # Set up an all-Fourier domain for the output
         logger.info("Setting up outputs...")
@@ -56,9 +52,7 @@ def main(data_dir):
         distcoords = np.array([0, *domain.dist.coords])
         l_shape = np.array(domain.local_grid_shape())
         l_offsets = distcoords * l_shape
-        u = u[:, l_offsets[0] : l_offsets[0] + l_shape[0], l_offsets[1] : l_offsets[1] + l_shape[1], l_offsets[2] : l_offsets[2] + l_shape[2]]
-        v = v[:, l_offsets[0] : l_offsets[0] + l_shape[0], l_offsets[1] : l_offsets[1] + l_shape[1], l_offsets[2] : l_offsets[2] + l_shape[2]]
-        w = w[:, l_offsets[0] : l_offsets[0] + l_shape[0], l_offsets[1] : l_offsets[1] + l_shape[1], l_offsets[2] : l_offsets[2] + l_shape[2]]
+        vel = vel[:, l_offsets[0] : l_offsets[0] + l_shape[0], l_offsets[1] : l_offsets[1] + l_shape[1], l_offsets[2] : l_offsets[2] + l_shape[2]]
 
         # Set up a (Chebyshev, Fourier, Fourier) domain for the interpolation input
         zbasis_cheby = de.Chebyshev('z', len(z), interval=(z[0], z[-1]))
@@ -83,18 +77,14 @@ def main(data_dir):
         de.operators.parseables['interp_to_fourier'] = interp_to_fourier_wrapper
 
         # Set up an essentially 'empty' problem
-        problem = de.IVP(domain,variables=['u', 'v', 'w'])
-        problem.add_equation("dt(u) = 0")
-        problem.add_equation("dt(v) = 0")
-        problem.add_equation("dt(w) = 0")
+        problem = de.IVP(domain,variables=[f])
+        problem.add_equation("dt({}) = 0".format(f))
         solver = problem.build_solver(de.timesteppers.RK443)
 
         # Create the file handler to output the interpolated fields
-        handler = solver.evaluator.add_file_handler(path.join(data_dir, "interp"), mode='overwrite')
+        handler = solver.evaluator.add_file_handler(path.join(data_dir, "interp_{}".format(f)), mode='overwrite')
         handler.last_wall_div = handler.last_sim_div = handler.last_iter_div = 0
-        handler.add_task("interp_to_fourier(u)", layout='g', name='u')
-        handler.add_task("interp_to_fourier(v)", layout='g', name='v')
-        handler.add_task("interp_to_fourier(w)", layout='g', name='w')
+        handler.add_task("interp_to_fourier({})".format(f), layout='g', name=f)
 
         time_start = time.time()
 
@@ -108,9 +98,7 @@ def main(data_dir):
             dt = current_t - last_t
             solver.step(dt)
             last_t = t[i]
-            solver.state['u']['g'] = u[i]
-            if v is not None: solver.state['v']['g'] = v[i]
-            solver.state['w']['g'] = w[i]
+            solver.state[f]['g'] = vel[i]
             solver.evaluator.evaluate_handlers((handler,), world_time=0, wall_time=0, sim_time=solver.sim_time, timestep=dt, iteration=i)
             time_now = time.time()
             if time_now - last_log > log_interval:
@@ -122,10 +110,10 @@ def main(data_dir):
 
         # Merge the files
         logger.info("Merging output files...")
-        interp_dir = path.join(data_dir, "interp")
+        interp_dir = path.join(data_dir, "interp_{}".format(f))
         post.merge_process_files(interp_dir, cleanup=True)
         set_paths = glob(path.join(interp_dir, '*.h5'))
-        post.merge_sets(path.join(data_dir, 'interp.h5'), set_paths, cleanup=True)
+        post.merge_sets(path.join(data_dir, 'interp_{}.h5'.format(f)), set_paths, cleanup=True)
 
         logger.info("Done")
 
@@ -136,5 +124,6 @@ if __name__ == '__main__':
         exit(1)
     data_dir = sys.argv[1]
 
-    main(data_dir)
-    # test(data_dir)
+    fields = ['u', 'v', 'w']
+    for f in fields:
+        interp(data_dir, f)
