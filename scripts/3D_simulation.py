@@ -12,7 +12,6 @@ import time
 import sys
 
 import utils
-import filtering
 
 import logging
 logger = logging.getLogger(__name__)
