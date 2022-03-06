@@ -9,7 +9,7 @@
   "Lx": 5,
   "Ly": 5,
   "Lz": 1,
-  "duration": 1.8,
+  "duration": 1,
   "average_interval": 0.75,
   "timestep": 1e-05,
   "timestep_analysis": 1e-3,
