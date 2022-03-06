@@ -8,4 +8,4 @@ To run a simulation:
 5. Create the plots by running `python3 scripts/plot.py <analysis_dir>`
 
 The plots related to filtering also require the `interp.h5` file to be created by first running `python3 scripts/interpolate.py`.
-The file `interp.h5` contains the velocity fields interpolated onto an evenly-spaced grid so that we can Fourier transform them.
+The file `interp.h5` contains the velocity fields interpolated onto an evenly-spaced grid so that Fourier transforms can be performed. This file is also parralelised, using the same command `mpiexec -n 2 -- python3 scripts/interpolate.py <analysis dir>`
