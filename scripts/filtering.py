@@ -229,7 +229,7 @@ def time_execution():
         L = 1
         wavelength_cutoff = L / 2 # Radius in wavelength-space
 
-        print(f"  Timing filtering of a {'x'.join([str(res)] * dims)} array with" + ("" if interpolate else "out") + " interpolation...")
+        print("  Timing filtering of a {} array with{} interpolation...".format('x'.join([str(res)] * dims), "" if interpolate else "out"))
 
         zaxis = de.Chebyshev('z', res, interval=(0, L)).grid(scale=1)
         xaxis = de.Fourier('x', res, interval=(0, L)).grid(scale=1)
@@ -261,7 +261,7 @@ def time_execution():
     print("  Calculating polyfit for 3D...")
 
     poly = np.polyfit(res, dims3, deg=3)
-    print(f"  coeffs = {poly}")
+    print("  coeffs = {}".format(poly))
     polyx = np.linspace(0, 256, 256)
     polyy = poly[0] * polyx**3 + poly[1] * polyx**2 + poly[2] * polyx + poly[3]
 
@@ -275,7 +275,7 @@ def time_execution():
     ax.scatter(res, dims3, marker='x')
     ax.plot(polyx, polyy, label="Cubic fit")
     ax.axvline(polyx[-1], ls='--')
-    ax.axhline(polyy[-1], ls='--', label=f"{np.round(polyy[-1], 3)}s")
+    ax.axhline(polyy[-1], ls='--', label=str(np.round(polyy[-1], 3)) + "s")
     ax.set_xlabel("Resolution")
     ax.set_ylabel("Time taken (s)")
     ax.legend()
@@ -482,63 +482,63 @@ def test_dedalus_interp():
     ax = fig.add_subplot(gs[0, 0])
     mesh = ax.pcolormesh(x, z, np.mean(arr, axis=1).T, shading='nearest')
     plt.colorbar(mesh)
-    ax.set_title(f"Original data ({res}x{res}x{res})")
+    ax.set_title("Original data ({}x{}x{})".format(res, res, res))
     ax.set_xlabel("x")
     ax.set_ylabel("z (Chebyshev)")
 
     ax = fig.add_subplot(gs[0, 1])
     mesh = ax.pcolormesh(x, z, np.mean(arr_dz, axis=1).T, shading='nearest')
     plt.colorbar(mesh)
-    ax.set_title(f"dz(Original data)")
+    ax.set_title("dz(Original data)")
     ax.set_xlabel("x")
     ax.set_ylabel("z (Chebyshev)")
 
     ax = fig.add_subplot(gs[0, 2])
     mesh = ax.pcolormesh(x, z, np.mean(arr_dz2, axis=1).T, shading='nearest')
     plt.colorbar(mesh)
-    ax.set_title(f"dz^2(Original data)")
+    ax.set_title("dz^2(Original data)")
     ax.set_xlabel("x")
     ax.set_ylabel("z (Chebyshev)")
 
     ax = fig.add_subplot(gs[1, 0])
     mesh = ax.pcolormesh(x, z_lin, np.mean(arr_interp, axis=1).T, shading='nearest')
     plt.colorbar(mesh)
-    ax.set_title(f"Interpolated to ({res}x{res}x{res_z_interp}) in {np.round(duration, 3)}s")
+    ax.set_title("Interpolated to ({}x{}x{}) in {}s".format(res, res, res_z_interp, np.round(duration, 3)))
     ax.set_xlabel("x")
     ax.set_ylabel("z (Fourier)")
 
     ax = fig.add_subplot(gs[1, 1])
     mesh = ax.pcolormesh(x, z_lin, np.mean(arr_interp_dz, axis=1).T, shading='nearest')
     plt.colorbar(mesh)
-    ax.set_title(f"dz(Interpolated)")
+    ax.set_title("dz(Interpolated)")
     ax.set_xlabel("x")
     ax.set_ylabel("z (Fourier)")
 
     ax = fig.add_subplot(gs[1, 2])
     mesh = ax.pcolormesh(x, z_lin, np.mean(arr_interp_dz2, axis=1).T, shading='nearest')
     plt.colorbar(mesh)
-    ax.set_title(f"dz^2(Interpolated)")
+    ax.set_title("dz^2(Interpolated)")
     ax.set_xlabel("x")
     ax.set_ylabel("z (Fourier)")
 
     ax = fig.add_subplot(gs[2, 0])
     mesh = ax.pcolormesh(x, z, np.mean(arr_interp2 - arr, axis=1).T, shading='nearest')
     plt.colorbar(mesh)
-    ax.set_title(f"Un-interpolated - Original")
+    ax.set_title("Un-interpolated - Original")
     ax.set_xlabel("x")
     ax.set_ylabel("z (Chebyshev)")
 
     ax = fig.add_subplot(gs[2, 1])
     mesh = ax.pcolormesh(x, z, np.mean(arr_interp2_dz - arr_dz, axis=1).T, shading='nearest')
     plt.colorbar(mesh)
-    ax.set_title(f"dz(Un-interpolated) - dz(Original)")
+    ax.set_title("dz(Un-interpolated) - dz(Original)")
     ax.set_xlabel("x")
     ax.set_ylabel("z (Chebyshev)")
 
     ax = fig.add_subplot(gs[2, 2])
     mesh = ax.pcolormesh(x, z, np.mean(arr_interp2_dz2 - arr_dz2, axis=1).T, shading='nearest')
     plt.colorbar(mesh)
-    ax.set_title(f"dz^2(Un-interpolated) - dz^2(Original)")
+    ax.set_title("dz^2(Un-interpolated) - dz^2(Original)")
     ax.set_xlabel("x")
     ax.set_ylabel("z (Chebyshev)")
 

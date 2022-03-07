@@ -439,8 +439,8 @@ def plot_momentum_terms_post(data_dir, plot_dir):
         tend = duration
         fig = plt.figure(figsize=np.flip(plots_shape) * plots_size_each)
         fig.suptitle(
-            "Terms of the averaged momentum equation\n"
-            "Averaged in t from {:.2f} to {:.2f} viscous times\n".format(tstart, tend)
+            "Terms of the averaged momentum equation\n" +
+            "Averaged in t from {:.2f} to {:.2f} viscous times\n".format(tstart, tend) +
             "All terms calculated in post-processing"
         )
 
