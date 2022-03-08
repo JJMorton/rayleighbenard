@@ -544,7 +544,7 @@ def plot_momentum_terms_filtered(data_dir, plot_dir):
 
     tstart = duration - params['average_interval']
     tend = duration
-    fig = plt.figure(figsize=plots_shape * plots_size_each)
+    fig = plt.figure(figsize=plots_shape[::-1] * plots_size_each)
     fig.suptitle("Terms of the averaged momentum equation\nAveraged in t from {:.2f} to {:.2f} viscous times\nAll terms calculated in post-processing".format(tstart, tend))
 
     ax = fig.add_subplot(*plots_shape, 1)
@@ -619,7 +619,7 @@ if __name__ == "__main__":
         pass
 
     plot_velocities(data_dir, plot_dir)
-    # plot_temperature(data_dir, plot_dir)
+    plot_temperature(data_dir, plot_dir)
     plot_heat_flux_z(data_dir, plot_dir)
     plot_energy(data_dir, plot_dir)
     plot_velocity_filters(data_dir, plot_dir)
