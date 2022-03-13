@@ -31,7 +31,7 @@ def run(data_dir):
     z = domain.grid(1, scales=1)                                   # accessing the z values
 
     # 3D Boussinesq hydrodynamics
-    problem = de.IVP(domain,variables=['T','p','u','v','w','Tz','uz','vz','wz','ut','vt'])
+    problem = de.IVP(domain,variables=['T','p','u','v','w','Tz','uz','vz','wz'])
 
     # Defining model parameters
     problem.parameters['Lx'] = params["Lx"]
