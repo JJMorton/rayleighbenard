@@ -32,7 +32,7 @@ WORKDIR=$SLURM_SUBMIT_DIR
 cd $WORKDIR || exec echo "Cannot cd to $WORKDIR"
 
 mpiexec -np $NUMPROCS python3 $MYBIN1 ../analysis > log_sim
-wait
-mpiexec -np $NUMPROCS python3 $MYBIN2 ../analysis > log_merge
-wait
-mpiexec -np $NUMPROCS python3 $MYBIN3 ../analysis > log_interp
+# wait
+# mpiexec -np $NUMPROCS python3 $MYBIN2 ../analysis > log_merge
+# wait
+# mpiexec -np $NUMPROCS python3 $MYBIN3 ../analysis > log_interp

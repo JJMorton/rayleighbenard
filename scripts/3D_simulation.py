@@ -117,7 +117,7 @@ def run(data_dir):
     analysis.add_task("integ(integ(T * w, 'x'), 'y') / (Lx * Ly)", layout='g', name='FluxHeatConv')
     analysis.add_task("integ(integ(-Tz, 'x'), 'y') / (Lx * Ly)", layout='g', name='FluxHeatCond')
     # Temperature slices
-    analysis.add_task("interp(T, z=0.95*Lz)", layout='g', name='Ttop')
+    analysis.add_task("interp(T, z={})".format(0.95 * params["Lz"]), layout='g', name='Ttop')
     analysis.add_task("interp(T, y=0)", layout='g', name='Tmid')
     
     ##################################################
