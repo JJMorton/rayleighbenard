@@ -60,9 +60,9 @@ def interp(data_dir, f):
             for r in range(1, num_ranks):
                 # 'Crop' the read fields to the sub-domain that this rank should handle
                 data = comm.recv(source=r)
-                l_shape = data['l_shape']
-                l_offsets = data['l_offsets']
-                rank_vel = vel[:, l_offsets[0] : l_offsets[0] + l_shape[0], l_offsets[1] : l_offsets[1] + l_shape[1], l_offsets[2] : l_offsets[2] + l_shape[2]]
+                shape = data['l_shape']
+                offsets = data['l_offsets']
+                rank_vel = vel[:, offsets[0] : offsets[0] + shape[0], offsets[1] : offsets[1] + shape[1], offsets[2] : offsets[2] + shape[2]]
                 # Send the local grid data to the rank that asked for it
                 comm.send({
                     'vel': rank_vel,
