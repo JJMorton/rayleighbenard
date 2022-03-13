@@ -80,7 +80,7 @@ def interp(data_dir, f):
         vel = data['vel']
         t, x, y, z = data['dims']
 
-    print("Rank {} has grid data of shape {}, t {}, x {}, y {}, z {}".format(rank, vel.shape, t.shape, x.shape, y.shape, z.shape))
+    print("Rank {} asked for grid state of shape {}, has grid data of shape {}, t {}, x {}, y {}, z {}".format(rank, l_shape, vel.shape, t.shape, x.shape, y.shape, z.shape))
 
     # Set up a (Chebyshev, Fourier, Fourier) domain for the interpolation input
     zbasis_cheby = de.Chebyshev('z', len(z), interval=(z[0], z[-1]))
@@ -89,9 +89,21 @@ def interp(data_dir, f):
     # Create the GeneralFunction operator for interpolating the z axis
     def interp_to_fourier(field):
         original_field_layout = field.layout
+
+        # bases_interp = [ np.squeeze(grid) for grid in domain.all_grids() ]
+        # bases_cheby = [ np.squeeze(grid) for grid in domain_cheby.all_grids() ]
+        # interped = filtering.interp_to_bases(field['g'], bases_cheby, bases_interp)
+        # if rank == 0: print("field shape: {}, interped shape: {}".format(field['g'].shape, interped.shape))
+
         field_cheby = domain_cheby.new_field(name=field.name)
         field_cheby['g'] = field['g']
         interped = filtering.interp_to_basis_dedalus(field_cheby, dest=de.Fourier, axis=0)
+
+        # interped = field['g']
+
+        # z_grid = np.squeeze(domain_cheby.grid(axis=0))
+        # interped = filtering.interp_along_axis(field['g'], 0, z_grid)
+
         # Put the field back in the layout it was originally, Dedalus can complain if we don't
         field.require_layout(original_field_layout)
         return interped
@@ -110,7 +122,7 @@ def interp(data_dir, f):
     solver = problem.build_solver(de.timesteppers.RK443)
 
     # Create the file handler to output the interpolated fields
-    handler = solver.evaluator.add_file_handler(path.join(data_dir, "interp_{}".format(f)), mode='overwrite')
+    handler = solver.evaluator.add_file_handler(path.join(data_dir, "interp_{}".format(f)), mode='overwrite')#, iter=1)
     handler.last_wall_div = handler.last_sim_div = handler.last_iter_div = 0
     handler.add_task("interp_to_fourier({})".format(f), layout='g', name=f)
 
@@ -120,7 +132,8 @@ def interp(data_dir, f):
     last_t = 0
     log_interval = 30
     last_log = time_start - log_interval - 1
-    print("rank {}: Running interpolation, logging every {}s".format(rank, log_interval))
+    # dt = params["timestep_analysis"]
+    logger.info("Running interpolation, logging every {}s".format(log_interval))
     for i in range(len(t)):
         current_t = t[i]
         dt = current_t - last_t
@@ -131,19 +144,20 @@ def interp(data_dir, f):
         time_now = time.time()
         if time_now - last_log > log_interval:
             last_log = time_now
-            print("rank{}: {}%".format(rank, np.round(100 * i / len(t), 0)))
+            logger.info("{}%".format(np.round(100 * i / len(t), 0)))
 
     time_end = time.time()
-    print("rank {}: Finished interpolating in {} minutes".format(rank, np.round((time_end - time_start) / 60, 2)))
+    # solver.evaluator.evaluate_scheduled(wall_time=solver.get_wall_time(), sim_time=solver.sim_time, iteration=solver.iteration)
+    logger.info("Finished interpolating in {} minutes".format(np.round((time_end - time_start) / 60, 2)))
 
     # Merge the files
-    print("rank {}: Merging output files...".format(rank))
+    logger.info("Merging output files...")
     interp_dir = path.join(data_dir, "interp_{}".format(f))
     post.merge_process_files(interp_dir, cleanup=True)
     set_paths = glob(path.join(interp_dir, '*.h5'))
     post.merge_sets(path.join(data_dir, 'interp_{}.h5'.format(f)), set_paths, cleanup=True)
 
-    logger.info("rank {}: Done".format(rank))
+    logger.info("Done")
 
 if __name__ == '__main__':
 

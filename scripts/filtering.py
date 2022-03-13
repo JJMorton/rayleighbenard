@@ -10,6 +10,49 @@ try:
 except ImportError:
     PerlinNoise = None
 
+import scipy.interpolate as interpolate
+
+def interp_along_axis(arr, axis, basis):
+    arr = np.swapaxes(arr, 0, axis)
+
+    interped = np.zeros(arr.shape)
+    res = len(basis)
+    basis_lin = np.linspace(basis[0], basis[-1], res)
+
+    # for a index i in the linear basis, we will interpolate between
+    # i_src and i_src+1 in the original basis
+    i_src = 0
+    for i in range(res):
+        x = basis_lin[i]
+        # find the points in the original data that we want to interpolate between
+        while i_src < res - 2 and basis[i_src + 1] < x:
+            i_src += 1
+        y0 = arr[i_src]
+        y1 = arr[i_src + 1]
+        x0 = basis[i_src]
+        x1 = basis[i_src + 1]
+        gradient = (y1 - y0) / (x1 - x0)
+        interped[i] = y0 + (x - x0) * gradient
+
+    interped = np.swapaxes(interped, 0, axis)
+    return interped
+
+def interp_to_bases(arr, bases, newbases):
+    """
+    Interpolates the n-dimensional array `arr` along `axis` using `newbasis`
+    """
+
+    # Change the bases into an array of coordinates specifying every point in arr
+    # Just the format that LinearNDInterpolator wants
+    points = np.stack(np.meshgrid(*bases, indexing='ij'), axis=-1)
+    points = points.reshape(np.product(arr.shape), points.shape[-1])
+
+    # Interpolate using the desired basis
+    # See the example at:
+    # https://docs.scipy.org/doc/scipy/reference/generated/scipy.interpolate.LinearNDInterpolator.html
+    arr_interp = interpolate.LinearNDInterpolator(points, arr.flatten())(*np.meshgrid(*newbases, indexing='ij'))
+    return arr_interp
+
 
 def create_linear_bases(bases):
     """
