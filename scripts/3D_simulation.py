@@ -48,8 +48,6 @@ def run(data_dir):
     problem.add_equation("dz(v) - vz = 0")
     problem.add_equation("dz(w) - wz = 0")
     problem.add_equation("dz(T) - Tz = 0")
-    problem.add_equation("dt(u) - ut = 0")
-    problem.add_equation("dt(v) - vt = 0")
 
     # mass continuity
     problem.add_equation("dx(u) + dy(v) + wz = 0")
