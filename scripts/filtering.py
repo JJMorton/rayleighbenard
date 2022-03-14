@@ -10,6 +10,7 @@ try:
 except ImportError:
     PerlinNoise = None
 
+import scipy.interpolate as interpolate
 
 def create_linear_bases(bases):
     """
@@ -23,42 +24,7 @@ def create_linear_bases(bases):
         newbases.append(basis_lin)
     return newbases
 
-
-def interp_to_basis_dedalus(field, axis=-1, dest=de.Fourier):
-    """
-    Interpolate `field` into an evenly spaced grid along `axis`.
-    This function can be used in a de.GeneralFunction.
-    """
-
-    # The dedalus name of the basis we are interpolating along
-    basis_name = field.domain.bases[axis].name
-    # Set up the array that the interpolated values will be put into
-    interped_shape = list(field['g'].shape)
-    # Put the specified axis at the start
-    (interped_shape[0], interped_shape[axis]) = (interped_shape[axis], interped_shape[0])
-    interped = np.zeros(interped_shape)
-    interped_grid = dest(basis_name, field.domain.bases[axis].base_grid_size * field.domain.dealias[axis], interval=field.domain.bases[axis].interval).grid()
-
-    # The interpolation
-    start_time = time.time()
-    for i in range(interped.shape[0]):
-        kwargs = {}
-        kwargs[basis_name] = interped_grid[i]
-        interp = de.operators.interpolate(field, **kwargs).evaluate()
-        if interp is None:
-            raise Exception("[interp_to_basis_dedalus] Failed to interpolate field {}".format(field.name))
-        # The Dedalus interpolate operator returns an array the same shape as the field
-        # but each slice at constant z is the same, hence why we just take the first here
-        interped[i] = np.real(np.swapaxes(interp['g'], 0, axis)[0])
-    end_time = time.time()
-    # print("[interp_to_basis_dedalus] Interpolated field '{}' in {}s".format(field.name, np.round(end_time - start_time, 3)))
-
-    # Move the interpolated axis back to where it should be
-    interped = np.swapaxes(interped, 0, axis)
-
-    return interped
-
-
+# This function is no longer used, only in test cases below
 def interp_to_basis(arr, axis=-1, src=de.Chebyshev, dest=de.Fourier, dest_res=None):
     """
     Interpolate `arr` into an evenly spaced grid along `axis` (the last
