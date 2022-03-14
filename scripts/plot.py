@@ -23,6 +23,13 @@ def get_field(file, fieldname):
         arr = arr[:, :, np.newaxis, :]
     return arr
 
+def get_dims_interp(file):
+    t = np.array(file['scales']['t'])
+    x = np.array(file['scales']['x'])
+    y = np.array(file['scales']['y'])
+    z = np.array(file['scales']['z'])
+    return t, x, y, z
+
 def get_dims(file, fieldname):
     """Get the dimension scales associated with the field"""
     task = file['tasks'][fieldname]
@@ -51,6 +58,39 @@ def average_horizontal(arr):
     if dims != 4:
         raise Exception("Attempt to horizontally average array with {} dimensions".format(dims))
     return np.mean(np.mean(arr, axis=1), axis=1)
+
+def calc_momentum_terms(params, x, y, z, u, v, w):
+    coeff = np.sin(params["Theta"]) * params["Ta"]**0.5
+
+    print("    Viscous X")
+    viscous_x = -np.gradient(np.gradient(u, z, axis=-1, edge_order=2), z, axis=-1, edge_order=2) / coeff
+    viscous_x_avg = np.mean(average_horizontal(viscous_x), axis=0)
+    del viscous_x
+    print("    Viscous Y")
+    viscous_y = -np.gradient(np.gradient(v, z, axis=-1, edge_order=2), z, axis=-1, edge_order=2) / coeff
+    viscous_y_avg = np.mean(average_horizontal(viscous_y), axis=0)
+    del viscous_y
+
+    print("    Time averages")
+    u_avgt = np.mean(u, axis=0)
+    v_avgt = np.mean(v, axis=0)
+    w_avgt = np.mean(w, axis=0)
+
+    print("    Coriolis X")
+    coriolis_x_avg = -np.mean(np.mean(v_avgt, axis=0), axis=0)
+    print("    Coriolis Y")
+    coriolis_y_avg = np.mean(np.mean(u_avgt, axis=0), axis=0)
+
+    print("    RS X")
+    stress_x = np.gradient(np.mean(average_horizontal((u - u_avgt) * (w - w_avgt)), axis=0), z, axis=-1, edge_order=2) / coeff
+    print("    RS Y")
+    stress_y = np.mean(np.gradient(average_horizontal((v - v_avgt) * (w - w_avgt)), z, axis=-1, edge_order=2), axis=0) / coeff
+
+    del u_avgt
+    del v_avgt
+    del w_avgt
+
+    return viscous_x_avg, viscous_y_avg, coriolis_x_avg, coriolis_y_avg, stress_x, stress_y
 
 
 def plot_velocities(data_dir, plot_dir):
@@ -93,7 +133,6 @@ def plot_velocities(data_dir, plot_dir):
         fig.colorbar(pcm, ax=ax)
         ax.set_xlabel('x')
         ax.set_ylabel('z')
-        ax.set_aspect(1)
 
         ax = fig.add_subplot(*plots_shape, 2)
         ax.set_title("Time averaged v")
@@ -101,7 +140,6 @@ def plot_velocities(data_dir, plot_dir):
         fig.colorbar(pcm, ax=ax)
         ax.set_xlabel('x')
         ax.set_ylabel('z')
-        ax.set_aspect(1)
 
         ax = fig.add_subplot(*plots_shape, 3)
         ax.set_title("Time averaged w")
@@ -109,7 +147,6 @@ def plot_velocities(data_dir, plot_dir):
         fig.colorbar(pcm, ax=ax)
         ax.set_xlabel('x')
         ax.set_ylabel('z')
-        ax.set_aspect(1)
 
         fig.set_tight_layout(True)
         plt.savefig(path.join(plot_dir, image_name))
@@ -230,6 +267,7 @@ def plot_energy(data_dir, plot_dir):
         plt.close()
 
 
+# TODO: FIX THIS MEMORY USAGE
 def plot_velocity_filters(data_dir, plot_dir):
     """Plot a snapshot in time of the velocities, against the low and high pass filtered versions"""
     image_name = "velocity_filters.png"
@@ -250,37 +288,30 @@ def plot_velocity_filters(data_dir, plot_dir):
 
     with h5py.File(filepath1, mode='r') as file:
 
-        # The order of the bases in interp.h5 is reversed, we need to do some swapping around
-        t, z, y, x = get_dims(file, 'u')
+        t, x, y, z = get_dims_interp(file)
         is3D = y is not None
 
         duration = min(params['duration'], t[-1])
         if duration < params['average_interval']: print('WARNING: averaging interval longer than simulation duration, averaging over entire duration...')
         tstart = duration - params['average_interval']
-        timeframe_mask = np.logical_and(t >= tstart, t <= duration)
-
-        t = t[timeframe_mask]
 
         # Correct the order of the axes after reading in the fields
-        u = np.swapaxes(get_field(file, 'u')[-1], 0, -1)
+        u = get_field(file, 'u')[-1]
+        u_lowpass = get_field(file, 'u_lowpass')[-1]
+        u_highpass = get_field(file, 'u_highpass')[-1]
 
     with h5py.File(filepath2, mode='r') as file:
-        v = np.swapaxes(get_field(file, 'v')[-1], 0, -1)
+        v = get_field(file, 'v')[-1]
+        v_lowpass = get_field(file, 'v_lowpass')[-1]
+        v_highpass = get_field(file, 'v_highpass')[-1]
     
     with h5py.File(filepath3, mode='r') as file:
-        w = np.swapaxes(get_field(file, 'w')[-1], 0, -1)
-
-    wavelength = params["Lz"] / 2
+        w = get_field(file, 'w')[-1]
+        w_lowpass = get_field(file, 'w_lowpass')[-1]
+        w_highpass = get_field(file, 'w_highpass')[-1]
 
     indices = (0, 1, 2) if is3D else (0, 1)
     bases = (x, y, z) if is3D else (x, z)
-    u_lowpass = filtering.kspace_lowpass(u, indices, bases, wavelength, interp=False)
-    v_lowpass = filtering.kspace_lowpass(v, indices, bases, wavelength, interp=False)
-    w_lowpass = filtering.kspace_lowpass(w, indices, bases, wavelength, interp=False)
-
-    u_highpass = filtering.kspace_highpass(u, indices, bases, wavelength, interp=False)
-    v_highpass = filtering.kspace_highpass(v, indices, bases, wavelength, interp=False)
-    w_highpass = filtering.kspace_highpass(w, indices, bases, wavelength, interp=False)
 
     # In 3D, take a slice at constant y so we can plot in 2D
     if is3D:
@@ -389,28 +420,10 @@ def plot_momentum_terms_post(data_dir, plot_dir):
         v = get_field(file, 'v')[timeframe_mask]
         w = get_field(file, 'w')[timeframe_mask]
 
-        # The x component terms
-        print("  Calculating x terms...")
-        coeff = np.sin(params["Theta"]) * params["Ta"]**0.5
-        viscous_x = -np.gradient(np.gradient(u, z, axis=-1, edge_order=2), z, axis=-1, edge_order=2) / coeff
-        coriolis_x = -v
-        stress_x = np.mean(np.gradient(average_horizontal( (u - np.mean(u, axis=0, keepdims=True)) * (w - np.mean(w, axis=0, keepdims=True)) ), z, axis=-1, edge_order=2), axis=0) / coeff
-
-        # The y component terms
-        print("  Calculating y terms...")
-        viscous_y = -np.gradient(np.gradient(v, z, axis=-1, edge_order=2), z, axis=-1, edge_order=2) / coeff
-        coriolis_y = u
-        stress_y = np.mean(np.gradient(average_horizontal( (v - np.mean(v, axis=0, keepdims=True)) * (w - np.mean(w, axis=0, keepdims=True)) ), z, axis=-1, edge_order=2), axis=0) / coeff
-
-        # Averaging in time and horizontally in space...
-        print("  Averaging...")
-        # ... for x
-        viscous_x_avg = np.mean(average_horizontal(viscous_x), axis=0)
-        coriolis_x_avg = np.mean(average_horizontal(coriolis_x), axis=0)
-
-        # ... and for y
-        viscous_y_avg = np.mean(average_horizontal(viscous_y), axis=0)
-        coriolis_y_avg = np.mean(average_horizontal(coriolis_y), axis=0)
+        viscous_x, viscous_y, coriolis_x, coriolis_y, rs_x, rs_y = calc_momentum_terms(params, x, y, z, u, v, w)
+        del u
+        del v
+        del w
 
         # Plot everything on two plots
         print("  Plotting...")
@@ -466,108 +479,68 @@ def plot_momentum_terms_filtered(data_dir, plot_dir):
         print("Plotting '{}' requires '{}'".format(image_name, filepath3))
         return
 
-    print("  Reading files...")
+    print("  Reading lowpassed fields from files...")
     with h5py.File(filepath1, mode='r') as file:
-        t, z, y, x = get_dims(file, 'u')
-
-        if y is None:
-            print("Plotting filtered momentum terms only has support for 3D right now.")
-            return
-
-        duration = min(params['duration'], t[-1])
-        if duration < params['average_interval']: print('WARNING: averaging interval longer than simulation duration, averaging over entire duration...')
-        timeframe_mask = np.logical_and(t >= duration - params['average_interval'], t <= duration)
-
-        t = t[timeframe_mask]
-        u = get_field(file, 'u')[timeframe_mask]
-
+        t, x, y, z = get_dims_interp(file)
+        u_low = get_field(file, 'u_lowpass')
     with h5py.File(filepath2, mode='r') as file:
-        v = get_field(file, 'v')[timeframe_mask]
-
+        v_low = get_field(file, 'v_lowpass')
     with h5py.File(filepath3, mode='r') as file:
-        w = get_field(file, 'w')[timeframe_mask]
+        w_low = get_field(file, 'w_lowpass')
 
-    u = np.swapaxes(u, 1, -1)
-    v = np.swapaxes(v, 1, -1)
-    w = np.swapaxes(w, 1, -1)
+    print("  Calculating lowpass filtered terms...")
+    viscous_x_low, viscous_y_low, _, _, rs_x_low, rs_y_low = calc_momentum_terms(params, x, y, z, u_low, v_low, w_low)
+    del u_low
+    del v_low
+    del w_low
 
-    print("  Filtering velocity fields...")
-    wavelength = params["Lz"] / 2
-    u_low = filtering.kspace_lowpass(u, (1, 2, 3), (x, y, z), wavelength, interp=False)
-    v_low = filtering.kspace_lowpass(v, (1, 2, 3), (x, y, z), wavelength, interp=False)
-    w_low = filtering.kspace_lowpass(w, (1, 2, 3), (x, y, z), wavelength, interp=False)
-    u_high = filtering.kspace_highpass(u, (1, 2, 3), (x, y, z), wavelength, interp=False)
-    v_high = filtering.kspace_highpass(v, (1, 2, 3), (x, y, z), wavelength, interp=False)
-    w_high = filtering.kspace_highpass(w, (1, 2, 3), (x, y, z), wavelength, interp=False)
+    print("  Reading highpassed fields from files...")
+    with h5py.File(filepath1, mode='r') as file:
+        u_high = get_field(file, 'u_highpass')
+    with h5py.File(filepath2, mode='r') as file:
+        v_high = get_field(file, 'v_highpass')
+    with h5py.File(filepath3, mode='r') as file:
+        w_high = get_field(file, 'w_highpass')
 
-    # The x component terms
-    print("  Calculating x terms...")
-    coeff = np.sin(params["Theta"]) * params["Ta"]**0.5
-    viscous_x = -np.gradient(np.gradient(u, z, axis=-1, edge_order=2), z, axis=-1, edge_order=2) / coeff
-    viscous_x_low = -np.gradient(np.gradient(u_low, z, axis=-1, edge_order=2), z, axis=-1, edge_order=2) / coeff
-    viscous_x_high = -np.gradient(np.gradient(u_high, z, axis=-1, edge_order=2), z, axis=-1, edge_order=2) / coeff
-    stress_x = np.mean(np.gradient(average_horizontal(
-        (u - np.mean(u, axis=0, keepdims=True)) * (w - np.mean(w, axis=0, keepdims=True))
-    ), z, axis=-1, edge_order=2), axis=0) / coeff
-    stress_x_low = np.mean(np.gradient(average_horizontal(
-        (u_low - np.mean(u_low, axis=0, keepdims=True)) * (w_low - np.mean(w_low, axis=0, keepdims=True))
-    ), z, axis=-1, edge_order=2), axis=0) / coeff
-    stress_x_high = np.mean(np.gradient(average_horizontal(
-        (u_high - np.mean(u_high, axis=0, keepdims=True)) * (w_high - np.mean(w_high, axis=0, keepdims=True))
-    ), z, axis=-1, edge_order=2), axis=0) / coeff
-
-    # The y component terms
-    print("  Calculating y terms...")
-    viscous_y = -np.gradient(np.gradient(v, z, axis=-1, edge_order=2), z, axis=-1, edge_order=2) / coeff
-    viscous_y_low = -np.gradient(np.gradient(v_low, z, axis=-1, edge_order=2), z, axis=-1, edge_order=2) / coeff
-    viscous_y_high = -np.gradient(np.gradient(v_high, z, axis=-1, edge_order=2), z, axis=-1, edge_order=2) / coeff
-    stress_y = np.mean(np.gradient(average_horizontal( (v - np.mean(v, axis=0, keepdims=True)) * (w - np.mean(w, axis=0, keepdims=True)) ), z, axis=-1, edge_order=2), axis=0) / coeff
-    stress_y_low = np.mean(np.gradient(average_horizontal( (v_low - np.mean(v_low, axis=0, keepdims=True)) * (w_low - np.mean(w_low, axis=0, keepdims=True)) ), z, axis=-1, edge_order=2), axis=0) / coeff
-    stress_y_high = np.mean(np.gradient(average_horizontal( (v_high - np.mean(v_high, axis=0, keepdims=True)) * (w_high - np.mean(w_high, axis=0, keepdims=True)) ), z, axis=-1, edge_order=2), axis=0) / coeff
-
-    # Averaging in time and horizontally in space...
-    print("  Averaging...")
-    # ... for x
-    viscous_x_avg = np.mean(average_horizontal(viscous_x), axis=0)
-    viscous_x_low_avg = np.mean(average_horizontal(viscous_x_low), axis=0)
-    viscous_x_high_avg = np.mean(average_horizontal(viscous_x_high), axis=0)
-
-    # ... and for y
-    viscous_y_avg = np.mean(average_horizontal(viscous_y), axis=0)
-    viscous_y_low_avg = np.mean(average_horizontal(viscous_y_low), axis=0)
-    viscous_y_high_avg = np.mean(average_horizontal(viscous_y_high), axis=0)
+    print("  Calculating highpass filtered terms...")
+    viscous_x_high, viscous_y_high, _, _, rs_x_high, rs_y_high = calc_momentum_terms(params, x, y, z, u_high, v_high, w_high)
+    del u_high
+    del v_high
+    del w_high
 
     # Plot everything on two plots
     print("  Plotting...")
     plots_shape = np.array((2, 1))
     plots_size_each = np.array((8, 4))
 
-    tstart = duration - params['average_interval']
-    tend = duration
+    tstart = t[0]
+    tend = t[-1]
     fig = plt.figure(figsize=plots_shape[::-1] * plots_size_each)
     fig.suptitle("Terms of the averaged momentum equation\nAveraged in t from {:.2f} to {:.2f} viscous times\nAll terms calculated in post-processing".format(tstart, tend))
 
     ax = fig.add_subplot(*plots_shape, 1)
     ax.set_title("x component")
     ax.axvline(0, lw=1, c='darkgray')
-    ax.plot(viscous_x_avg, z, label="Viscous", c='green')
-    ax.plot(viscous_x_low_avg, z, label="Viscous (lowpass)", lw=1, ls='--', c='green')
-    ax.plot(viscous_x_high_avg, z, label="Viscous (highpass)", lw=1, ls=':', c='green')
-    ax.plot(stress_x, z, label="Stress d/dz <uw>", c='red')
-    ax.plot(stress_x_low, z, label="Stress (lowpass)", lw=1, ls='--', c='red')
-    ax.plot(stress_x_high, z, label="Stress (highpass)", lw=1, ls=':', c='red')
+    # ax.plot(-coriolis_x, z, label="Mean flow", c='lightgray', lw=4)
+    # ax.plot(viscous_x, z, label="Viscous", c='green')
+    ax.plot(viscous_x_low, z, label="Viscous (lowpass)", lw=1, ls='--', c='green')
+    ax.plot(viscous_x_high, z, label="Viscous (highpass)", lw=1, ls=':', c='green')
+    # ax.plot(rs_x, z, label="Stress d/dz <uw>", c='red')
+    ax.plot(rs_x_low, z, label="Stress (lowpass)", lw=1, ls='--', c='red')
+    ax.plot(rs_x_high, z, label="Stress (highpass)", lw=1, ls=':', c='red')
     ax.legend()
     ax.set_ylabel('z')
 
     ax = fig.add_subplot(*plots_shape, 2)
     ax.set_title("y component")
     ax.axvline(0, lw=1, c='darkgray')
-    ax.plot(-viscous_y_avg, z, label="Viscous", c='green')
-    ax.plot(-viscous_y_low_avg, z, label="Viscous (lowpass)", lw=1, ls='--', c='green')
-    ax.plot(-viscous_y_high_avg, z, label="Viscous (highpass)", lw=1, ls=':', c='green')
-    ax.plot(-stress_y, z, label="Stress d/dz <vw>", c='red')
-    ax.plot(-stress_y_low, z, label="Stress (lowpass)", lw=1, ls='--', c='red')
-    ax.plot(-stress_y_high, z, label="Stress (highpass)", lw=1, ls=':', c='red')
+    # ax.plot(coriolis_y, z, label="Mean flow", c='lightgray', lw=4)
+    # ax.plot(-viscous_y, z, label="Viscous", c='green')
+    ax.plot(-viscous_y_low, z, label="Viscous (lowpass)", lw=1, ls='--', c='green')
+    ax.plot(-viscous_y_high, z, label="Viscous (highpass)", lw=1, ls=':', c='green')
+    # ax.plot(-rs_y, z, label="Stress d/dz <vw>", c='red')
+    ax.plot(-rs_y_low, z, label="Stress (lowpass)", lw=1, ls='--', c='red')
+    ax.plot(-rs_y_high, z, label="Stress (highpass)", lw=1, ls=':', c='red')
     ax.legend()
     ax.set_ylabel('z')
 
@@ -624,7 +597,7 @@ if __name__ == "__main__":
     plot_energy(data_dir, plot_dir)
     plot_velocity_filters(data_dir, plot_dir)
     plot_momentum_terms_post(data_dir, plot_dir)
-    plot_momentum_terms_filtered(data_dir, plot_dir)
+    # plot_momentum_terms_filtered(data_dir, plot_dir)
     # plot_momentum_terms(data_dir, plot_dir)
     # video(data_dir, plot_dir)
 
