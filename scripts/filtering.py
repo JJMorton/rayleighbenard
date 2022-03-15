@@ -104,36 +104,36 @@ def fft_nd_inverse(data, axes):
     return np.real(fft.ifftn(fft.ifftshift(data), axes=axes))
 
 
-def kspace_lowpass(data, axes, bases, lambda_cutoff, interp=False):
+def radius_filter(data_fft, kbases, kmin=0, kmax=np.inf):
+    # k_space_magnitude[i, j] = kz[i]^2 + kx[j]^2
+    # i.e. each element is the magnitude of the corresponding wave-vector
+    k_space_magnitude = np.array(0)
+    for basis in kbases: k_space_magnitude = np.add.outer(k_space_magnitude, basis*basis)
+
+    # the masks are 2d arrays of booleans that can be used to select only low/high frequencies from a transformed array
+    mask = np.logical_and(k_space_magnitude < kmax*kmax, k_space_magnitude >= kmin*kmin)
+
+    # Apply the mask
+    return np.where(mask, data_fft, 0)
+
+
+def kspace_lowpass(data, axes, bases, lambda_cutoff):
     """
     Apply a lowpass filter to `data` along the specified axes.
     `bases` is the set of bases that data is specified by (e.g. x, y, and z arrays).
     `lambda_cutoff` is the smallest wavelength (equivalent to the largest frequency) that will be retained.
-    `interp`, if True, will interpolate the last axis of `data` onto a linear grid.
 
-    Example usage: kspace_lowpass(3d_arr, (0, 1, 2), (x, y, z), Lz / 4, interp=True)
+    Example usage: kspace_lowpass(3d_arr, (0, 1, 2), (x, y, z), Lz / 4)
         where x, y and z are 1-D arrays specifying the axes' grid points (i.e. the grid scales from Dedalus)
     """
 
-    # Interpolate to linear axis scales
-    data_interp = interp_to_basis(data, axis=-1, src=de.Chebyshev, dest=de.Fourier) if interp else data
-
     # Transform to k space
-    bases_lin = create_linear_bases(bases)
-    data_fft, kbases = fft_nd(data_interp, axes, bases_lin)
-
-    # k_space_magnitude[i, j] = kz[i]^2 + kx[j]^2
-    # i.e. each element is the magnitude of the corresponding wave-vector
-    k_space_magnitude = kbases[0]*kbases[0]
-    for basis in kbases[1:]: k_space_magnitude = np.add.outer(k_space_magnitude, basis*basis)
-    # k_space_magnitude = np.add.outer(*[basis * basis for basis in kbases])
-
-    # the masks are 2d arrays of booleans that can be used to select only low/high frequencies from a transformed array
-    cutoff = 2 * np.pi / lambda_cutoff
-    lowpass_mask = k_space_magnitude < cutoff*cutoff
+    data_fft, kbases = fft_nd(data, axes, bases)
 
     # Apply the mask
-    data_fft = np.where(lowpass_mask, data_fft, 0)
+    # the masks are 2d arrays of booleans that can be used to select only low/high frequencies from a transformed array
+    cutoff = 2 * np.pi / lambda_cutoff
+    data_fft = radius_filter(data_fft, kbases, kmax=cutoff)
 
     # Invert the FFT back to real space
     data_fft_reversed = fft_nd_inverse(data_fft, axes)
@@ -142,36 +142,23 @@ def kspace_lowpass(data, axes, bases, lambda_cutoff, interp=False):
     return data_fft_reversed
 
 
-def kspace_highpass(data, axes, bases, lambda_cutoff, interp=False):
+def kspace_highpass(data, axes, bases, lambda_cutoff):
     """
     Apply a highpass filter to `data` along the specified axes.
     `bases` is the set of bases that data is specified by (e.g. x, y, and z arrays).
     `lambda_cutoff` is the largest wavelength (equivalent to the smallest frequency) that will be retained.
-    `interp`, if True, will interpolate the last axis of `data` onto a linear grid.
 
-    Example usage: kspace_highpass(3d_arr, (0, 1, 2), (x, y, z), Lz / 4, interp=True)
+    Example usage: kspace_highpass(3d_arr, (0, 1, 2), (x, y, z), Lz / 4)
         where x, y and z are 1-D arrays specifying the axes' grid points (i.e. the grid scales from Dedalus)
     """
 
-    # Interpolate to linear axis scales
-    data_interp = interp_to_basis(data, axis=-1, src=de.Chebyshev, dest=de.Fourier) if interp else data
-
     # Transform to k space
-    bases_lin = create_linear_bases(bases)
-    data_fft, kbases = fft_nd(data_interp, axes, bases_lin)
-
-    # k_space_magnitude[i, j] = kz[i]^2 + kx[j]^2
-    # i.e. each element is the magnitude of the corresponding wave-vector
-    k_space_magnitude = kbases[0]*kbases[0]
-    for basis in kbases[1:]: k_space_magnitude = np.add.outer(k_space_magnitude, basis*basis)
-    # k_space_magnitude = np.add.outer(*[basis * basis for basis in kbases])
-
-    # the masks are 2d arrays of booleans that can be used to select only low/high frequencies from a transformed array
-    cutoff = 2 * np.pi / lambda_cutoff
-    highpass_mask = k_space_magnitude >= cutoff*cutoff
+    data_fft, kbases = fft_nd(data, axes, bases)
 
     # Apply the mask
-    data_fft = np.where(highpass_mask, data_fft, 0)
+    # the masks are 2d arrays of booleans that can be used to select only low/high frequencies from a transformed array
+    cutoff = 2 * np.pi / lambda_cutoff
+    data_fft = radius_filter(data_fft, kbases, kmin=cutoff)
 
     # Invert the FFT back to real space
     data_fft_reversed = fft_nd_inverse(data_fft, axes)
