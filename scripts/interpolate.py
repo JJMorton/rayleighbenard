@@ -97,13 +97,15 @@ def interp(data_dir, f):
 
     print("Rank {} has array of shape {}, starting interpolation and filtering".format(rank, vel.shape))
 
-    wavelength = params['Lz'] / 2
+    # wavelength = params['Lz'] / 2
+    wavelength = 0.113137
     lowpass = np.zeros(vel.shape)
     highpass = np.zeros(vel.shape)
+    z_fourier = np.linspace(z[0], z[-1], len(z))
     for i in range(vel.shape[0]):
         vel[i] = interp_along_axis(vel[i], -1, z)
-        lowpass[i] = filtering.kspace_lowpass(vel[i], (0, 1, 2), (x, y, z), wavelength)
-        highpass[i] = filtering.kspace_highpass(vel[i], (0, 1, 2), (x, y, z), wavelength)
+        lowpass[i] = filtering.kspace_lowpass(vel[i], (0, 1, 2), (x, y, z_fourier), wavelength)
+        highpass[i] = filtering.kspace_highpass(vel[i], (0, 1, 2), (x, y, z_fourier), wavelength)
         # if i % (vel.shape[0] // 5) == 0:
             # print("Rank {} is at {}%".format(rank, np.round(100 * i / vel.shape[0], 1)))
 
@@ -124,7 +126,6 @@ def interp(data_dir, f):
         filepath = path.join(data_dir, "interp_{}.h5".format(f))
         logger.info("Saving to {}".format(filepath))
         # Now have the complete interpolation, output to h5 file
-        z_fourier = np.linspace(-params['Lz']/2, params['Lz']/2, params['resZ'])
         with h5py.File(filepath, 'w') as interp_file:
             scales = interp_file.create_group("scales")
             scale_t = scales.create_dataset('t', data=t).make_scale()
