@@ -57,7 +57,7 @@ def average_horizontal(arr):
     dims = len(arr.shape)
     if dims != 4:
         raise Exception("Attempt to horizontally average array with {} dimensions".format(dims))
-    return np.mean(np.mean(arr, axis=1), axis=1)
+    return np.mean(np.mean(arr, axis=2), axis=1)
 
 def calc_momentum_terms(params, x, y, z, u, v, w):
     coeff = np.sin(params["Theta"]) * params["Ta"]**0.5
@@ -71,15 +71,15 @@ def calc_momentum_terms(params, x, y, z, u, v, w):
     viscous_y_avg = np.mean(average_horizontal(viscous_y), axis=0)
     del viscous_y
 
+    print("    Coriolis X")
+    coriolis_x_avg = -np.mean(average_horizontal(v), axis=0)
+    print("    Coriolis Y")
+    coriolis_y_avg = np.mean(average_horizontal(u), axis=0)
+
     print("    Time averages")
     u_avgt = np.mean(u, axis=0)
     v_avgt = np.mean(v, axis=0)
     w_avgt = np.mean(w, axis=0)
-
-    print("    Coriolis X")
-    coriolis_x_avg = -np.mean(np.mean(v_avgt, axis=0), axis=0)
-    print("    Coriolis Y")
-    coriolis_y_avg = np.mean(np.mean(u_avgt, axis=0), axis=0)
 
     print("    RS X")
     stress_x = np.gradient(np.mean(average_horizontal((u - u_avgt) * (w - w_avgt)), axis=0), z, axis=-1, edge_order=2) / coeff
@@ -392,8 +392,8 @@ def plot_velocity_filters(data_dir, plot_dir):
     plt.close()
 
 
-def plot_momentum_terms_post(data_dir, plot_dir):
-    image_name = "momentum_terms_post.png"
+def plot_momentum_terms(data_dir, plot_dir):
+    image_name = "momentum_terms.png"
     print('Plotting "{}"...'.format(image_name))
     params = utils.read_params(data_dir)
     filepath = path.join(data_dir, 'state.h5')
@@ -401,65 +401,65 @@ def plot_momentum_terms_post(data_dir, plot_dir):
         print("Plotting '{}' requires '{}'".format(image_name, filepath))
         return
 
+    print("  Reading velocity fields from file...")
     with h5py.File(filepath, mode='r') as file:
 
         t, x, y, z = get_dims(file, 'u')
 
-        if y is None:
-            print("Plotting momentum terms only has support for 3D right now.")
-            return
-
         duration = min(params['duration'], t[-1])
         if duration < params['average_interval']: print('WARNING: averaging interval longer than simulation duration, averaging over entire duration...')
-        timeframe_mask = np.logical_and(t >= duration - params['average_interval'], t <= duration)
+        tstart = duration - params['average_interval']
+        timeframe_mask = np.logical_and(t >= tstart, t <= duration)
 
         t = t[timeframe_mask]
 
-        print("  Reading file...")
+        print("    u")
         u = get_field(file, 'u')[timeframe_mask]
+        print("    v")
         v = get_field(file, 'v')[timeframe_mask]
+        print("    w")
         w = get_field(file, 'w')[timeframe_mask]
 
-        viscous_x, viscous_y, coriolis_x, coriolis_y, rs_x, rs_y = calc_momentum_terms(params, x, y, z, u, v, w)
-        del u
-        del v
-        del w
+    print("  Calculating terms...")
+    viscous_x, viscous_y, coriolis_x, coriolis_y, rs_x, rs_y = calc_momentum_terms(params, x, y, z, u, v, w)
+    del u
+    del v
+    del w
 
-        # Plot everything on two plots
-        print("  Plotting...")
-        plots_shape = np.array((2, 1))
-        plots_size_each = np.array((8, 4))
+    # Plot everything on two plots
+    print("  Plotting...")
+    plots_shape = np.array((2, 1))
+    plots_size_each = np.array((8, 4))
 
-        tstart = duration - params['average_interval']
-        tend = duration
-        fig = plt.figure(figsize=plots_shape[::-1] * plots_size_each)
-        fig.suptitle(
-            "Terms of the averaged momentum equation\n" +
-            "Averaged in t from {:.2f} to {:.2f} viscous times\n".format(tstart, tend) +
-            "All terms calculated in post-processing"
-        )
+    tstart = duration - params['average_interval']
+    tend = duration
+    fig = plt.figure(figsize=plots_shape[::-1] * plots_size_each)
+    fig.suptitle(
+        "Terms of the averaged momentum equation\n" +
+        "Averaged in t from {:.2f} to {:.2f} viscous times\n".format(tstart, tend)
+    )
 
-        ax = fig.add_subplot(*plots_shape, 1)
-        ax.set_title("x component")
-        ax.axvline(0, lw=1, c='darkgray')
-        ax.plot(viscous_x_avg, z, label="Viscous", c='green')
-        ax.plot(-coriolis_x_avg, z, label="Mean flow", c='black')
-        ax.plot(stress_x, z, label="Stress d/dz <uw>", c='red')
-        ax.legend()
-        ax.set_ylabel('z')
+    ax = fig.add_subplot(*plots_shape, 1)
+    ax.set_title("Meridional (north-south) component")
+    ax.axvline(0, lw=1, c='darkgray')
+    ax.plot(viscous_x, z, label="Viscous", c='green')
+    ax.plot(-coriolis_x, z, label="Mean flow", c='black')
+    ax.plot(rs_x, z, label="Stress d/dz <uw>", c='red')
+    ax.legend()
+    ax.set_ylabel('z')
 
-        ax = fig.add_subplot(*plots_shape, 2)
-        ax.set_title("y component")
-        ax.axvline(0, lw=1, c='darkgray')
-        ax.plot(-viscous_y_avg, z, label="Viscous", c='green')
-        ax.plot(coriolis_y_avg, z, label="Mean flow", c='black')
-        ax.plot(-stress_y, z, label="Stress d/dz <vw>", c='red')
-        ax.legend()
-        ax.set_ylabel('z')
+    ax = fig.add_subplot(*plots_shape, 2)
+    ax.set_title("Zonal (west-east) component")
+    ax.axvline(0, lw=1, c='darkgray')
+    ax.plot(-viscous_y, z, label="Viscous", c='green')
+    ax.plot(coriolis_y, z, label="Mean flow", c='black')
+    ax.plot(-rs_y, z, label="Stress d/dz <vw>", c='red')
+    ax.legend()
+    ax.set_ylabel('z')
 
-        fig.set_tight_layout(True)
-        plt.savefig(path.join(plot_dir, image_name))
-        plt.close()
+    fig.set_tight_layout(True)
+    plt.savefig(path.join(plot_dir, image_name))
+    plt.close()
 
 
 def plot_momentum_terms_filtered(data_dir, plot_dir):
@@ -479,9 +479,15 @@ def plot_momentum_terms_filtered(data_dir, plot_dir):
         print("Plotting '{}' requires '{}'".format(image_name, filepath3))
         return
 
-    print("  Reading lowpassed fields from files...")
+    print("  Reading unfiltered fields from files...")
     with h5py.File(filepath1, mode='r') as file:
         t, x, y, z = get_dims_interp(file)
+        mean_y = np.mean(average_horizontal(get_field(file, 'u')), axis=0)
+    with h5py.File(filepath2, mode='r') as file:
+        mean_x = np.mean(average_horizontal(get_field(file, 'v')), axis=0)
+
+    print("  Reading lowpassed fields from files...")
+    with h5py.File(filepath1, mode='r') as file:
         u_low = get_field(file, 'u_lowpass')
     with h5py.File(filepath2, mode='r') as file:
         v_low = get_field(file, 'v_lowpass')
@@ -516,12 +522,12 @@ def plot_momentum_terms_filtered(data_dir, plot_dir):
     tstart = t[0]
     tend = t[-1]
     fig = plt.figure(figsize=plots_shape[::-1] * plots_size_each)
-    fig.suptitle("Terms of the averaged momentum equation\nAveraged in t from {:.2f} to {:.2f} viscous times\nAll terms calculated in post-processing".format(tstart, tend))
+    fig.suptitle("Terms of the averaged momentum equation\nAveraged in t from {:.2f} to {:.2f} viscous times".format(tstart, tend))
 
     ax = fig.add_subplot(*plots_shape, 1)
-    ax.set_title("x component")
+    ax.set_title("Meridional (north-south) component")
     ax.axvline(0, lw=1, c='darkgray')
-    # ax.plot(-coriolis_x, z, label="Mean flow", c='lightgray', lw=4)
+    ax.plot(mean_x, z, label="Mean flow", c='lightgray', lw=4)
     # ax.plot(viscous_x, z, label="Viscous", c='green')
     ax.plot(viscous_x_low, z, label="Viscous (lowpass)", lw=1, ls='--', c='green')
     ax.plot(viscous_x_high, z, label="Viscous (highpass)", lw=1, ls=':', c='green')
@@ -532,9 +538,9 @@ def plot_momentum_terms_filtered(data_dir, plot_dir):
     ax.set_ylabel('z')
 
     ax = fig.add_subplot(*plots_shape, 2)
-    ax.set_title("y component")
+    ax.set_title("Zonal (west-east) component")
     ax.axvline(0, lw=1, c='darkgray')
-    # ax.plot(coriolis_y, z, label="Mean flow", c='lightgray', lw=4)
+    ax.plot(mean_y, z, label="Mean flow", c='lightgray', lw=4)
     # ax.plot(-viscous_y, z, label="Viscous", c='green')
     ax.plot(-viscous_y_low, z, label="Viscous (lowpass)", lw=1, ls='--', c='green')
     ax.plot(-viscous_y_high, z, label="Viscous (highpass)", lw=1, ls=':', c='green')
@@ -596,9 +602,8 @@ if __name__ == "__main__":
     plot_heat_flux_z(data_dir, plot_dir)
     plot_energy(data_dir, plot_dir)
     plot_velocity_filters(data_dir, plot_dir)
-    plot_momentum_terms_post(data_dir, plot_dir)
-    # plot_momentum_terms_filtered(data_dir, plot_dir)
-    # plot_momentum_terms(data_dir, plot_dir)
+    plot_momentum_terms(data_dir, plot_dir)
+    plot_momentum_terms_filtered(data_dir, plot_dir)
     # video(data_dir, plot_dir)
 
     print("Done.")
