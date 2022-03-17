@@ -554,6 +554,90 @@ def plot_momentum_terms_filtered(data_dir, plot_dir):
     plt.savefig(path.join(plot_dir, image_name))
     plt.close()
 
+def plot_power_spectrum(data_dir, plot_dir):
+    image_name = "power_spectrum.png"
+    print('Plotting "{}"...'.format(image_name))
+    filepath1 = path.join(data_dir_1, 'interp_u.h5')
+    filepath2 = path.join(data_dir_1, 'interp_v.h5')
+    filepath3 = path.join(data_dir_1, 'interp_w.h5')
+    params = utils.read_params(data_dir_1)
+    if not path.exists(filepath1):
+        print("Plotting '{}' requires '{}'".format(image_name, filepath1))
+        return
+    if not path.exists(filepath2):
+        print("Plotting '{}' requires '{}'".format(image_name, filepath2))
+        return
+    if not path.exists(filepath3):
+        print("Plotting '{}' requires '{}'".format(image_name, filepath3))
+        return
+    
+    with h5py.File(filepath1, mode='r') as file:
+        t, x, y, z = get_dims_interp(file)
+        u = get_field(file, 'u')
+    with h5py.File(filepath2, mode='r') as file:
+        v = get_field(file, 'v')
+    with h5py.File(filepath3, mode='r') as file:
+        w = get_field(file, 'w')
+
+    duration = min(params['duration'], t[-1])
+    if duration < params['average_interval']: print('WARNING: averaging interval longer than simulation duration, averaging over entire duration...')
+    tstart = duration - params['average_interval']
+    timeframe_mask = np.logical_and(t >= tstart, t <= duration)
+
+    t = t[timeframe_mask]
+
+    epsilon = 1e-50
+
+    u_avgt = np.mean(u[timeframe_mask], axis=0)
+    v_avgt = np.mean(v[timeframe_mask], axis=0)
+    w_avgt = np.mean(w[timeframe_mask], axis=0)
+
+    ampls_u = abs(np.fft.fftn(u_avgt)/u_avgt.size)
+    ampls_v = abs(np.fft.fftn(v_avgt)/v_avgt.size)
+    ampls_w = abs(np.fft.fftn(w_avgt)/w_avgt.size)
+
+    E_u = ampls_u**2
+    E_v = ampls_v**2
+    E_w = ampls_w**2
+
+    box_sidex = np.shape(E_u)[0]
+    box_sidey = np.shape(E_u)[1]
+    box_sidez = np.shape(E_u)[2]
+
+    box_radius = int(np.ceil((np.sqrt((box_sidex)**2+(box_sidey)**2+(box_sidez)**2))/2.)+1)
+
+    centerx = int(box_sidex/2)
+    centery = int(box_sidey/2)
+    centerz = int(box_sidez/2)
+
+    E_u_avsphr = np.zeros(box_radius,)+epsilon ## size of the radius
+    E_v_avsphr = np.zeros(box_radius,)+epsilon ## size of the radius
+    E_w_avsphr = np.zeros(box_radius,)+epsilon ## size of the radius
+
+    for i in range(box_sidex):
+	    for j in range(box_sidey):
+		    for k in range(box_sidez):            
+			    wn =  int(np.round(np.sqrt((i-centerx)**2+(j-centery)**2+(k-centerz)**2)))
+			    E_u_avsphr[wn] = E_u_avsphr[wn] + E_u[i,j,k]
+			    E_v_avsphr[wn] = E_v_avsphr[wn] + E_v[i,j,k]    
+			    E_w_avsphr[wn] = E_w_avsphr[wn] + E_w[i,j,k]        
+        
+    E_avsphr = 0.5*(E_u_avsphr + E_v_avsphr + E_w_avsphr)
+
+    fig = plt.figure()
+    plt.title("Kinetic Energy Spectrum")
+    plt.xlabel("k")
+    plt.ylabel("E(k)")
+
+    realsize = len(np.fft.rfft(u[:,0,0]))
+    plt.loglog(np.arange(0,realsize),((E_avsphr[0:realsize] )),'k')
+    plt.loglog(np.arange(realsize,len(E_avsphr),1),((E_avsphr[realsize:] )),'k--')
+    axes = plt.gca()
+    axes.set_ylim([10**-25,10**3])
+
+    fig.set_tight_layout(True)
+    plt.savefig(path.join(plot_dir, image_name))
+    plt.close()
     
 def video(data_dir, plot_dir):
     print('Rendering video...')
@@ -604,6 +688,7 @@ if __name__ == "__main__":
     plot_velocity_filters(data_dir, plot_dir)
     plot_momentum_terms(data_dir, plot_dir)
     plot_momentum_terms_filtered(data_dir, plot_dir)
+    plot_power_spectrum(data_dir, plot_dir)
     # video(data_dir, plot_dir)
 
     print("Done.")
