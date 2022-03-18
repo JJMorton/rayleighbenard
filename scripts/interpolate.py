@@ -57,7 +57,7 @@ def interp(data_dir, f):
     y = np.empty(params['resY'], dtype='d')
     z = np.empty(params['resZ'], dtype='d')
     if rank == 0:
-        with h5py.File(path.join(data_dir, 'state.h5'), mode='r') as state_file:
+        with h5py.File(path.join(data_dir, 'vel.h5'), mode='r') as state_file:
             dims = state_file['tasks'][f].dims
             # Read in original un-interpolated fields and the dimension scales
             logger.info("Reading field {} from hdf5 file...".format(f))
