@@ -52,11 +52,11 @@ def run(data_dir):
     # mass continuity
     problem.add_equation("dx(u) + dy(v) + wz = 0")
     # x-component of the momentum equation
-    problem.add_equation("dt(u) + dx(p) - (dx(dx(u)) + dy(dy(u)) + dz(uz)) + (Ta ** 0.5) * v * cos(Theta) = - (u * dx(u) + v * dy(u) + w * uz)")
+    problem.add_equation("dt(u) + dx(p) - (dx(dx(u)) + dy(dy(u)) + dz(uz)) - (Ta ** 0.5) * v * cos(Theta) = - (u * dx(u) + v * dy(u) + w * uz)")
     # y-component of the momentum equation
-    problem.add_equation("dt(v) + dy(p) - (dx(dx(v)) + dy(dy(v)) + dz(vz)) - (Ta ** 0.5) * (u * cos(Theta) + w * sin(Theta)) = - (u * dx(v) + v * dy(v) + w * vz)")
+    problem.add_equation("dt(v) + dy(p) - (dx(dx(v)) + dy(dy(v)) + dz(vz)) + (Ta ** 0.5) * (u * cos(Theta) + w * sin(Theta)) = - (u * dx(v) + v * dy(v) + w * vz)")
     # z-component of the momentum equation
-    problem.add_equation("dt(w) + dz(p) - (dx(dx(w)) + dy(dy(w)) + dz(wz)) + (Ta ** 0.5) * v * sin(Theta) - X * T = -(u * dx(w) + v * dy(w) + w * wz)")
+    problem.add_equation("dt(w) + dz(p) - (dx(dx(w)) + dy(dy(w)) + dz(wz)) - (Ta ** 0.5) * v * sin(Theta) - X * T = -(u * dx(w) + v * dy(w) + w * wz)")
     # Temperature equation
     problem.add_equation("Pr * dt(T) - (dx(dx(T)) + dy(dy(T)) + dz(Tz)) = - Pr * (u * dx(T) + v * dy(T) + w * Tz)")
 
