@@ -103,10 +103,13 @@ def run(data_dir):
     ##################################################
     # Prepare directory for simulation results
 
-    state = solver.evaluator.add_file_handler(path.join(data_dir, "state"), sim_dt=params["timestep_analysis"], mode='overwrite')
-    state.add_task("u", layout='g', name='u')
-    state.add_task("v", layout='g', name='v')
-    state.add_task("w", layout='g', name='w')
+    state = solver.evaluator.add_file_handler(path.join(data_dir, "state"), sim_dt=params["timestep_state"], mode='overwrite')
+    state.add_system(solver.state)
+
+    vel = solver.evaluator.add_file_handler(path.join(data_dir, "vel"), sim_dt=params["timestep_vel"], mode='overwrite')
+    vel.add_task("u", layout='g', name='u')
+    vel.add_task("v", layout='g', name='v')
+    vel.add_task("w", layout='g', name='w')
 
     analysis = solver.evaluator.add_file_handler(path.join(data_dir, "analysis"), sim_dt=params["timestep_analysis"], mode='overwrite')
     # Total energy E(t)
