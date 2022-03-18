@@ -24,6 +24,11 @@ def merge(data_dir):
     post.merge_process_files(state_dir, cleanup=True)
     set_paths = glob(path.join(state_dir, 'state_s*.h5'))
     post.merge_sets(path.join(data_dir, 'state.h5'), set_paths, cleanup=True)
+    
+    vel_dir = path.join(data_dir, "vel")
+    post.merge_process_files(vel_dir, cleanup=True)
+    set_paths = glob(path.join(vel_dir, 'vel_s*.h5'))
+    post.merge_sets(path.join(data_dir, 'vel.h5'), set_paths, cleanup=True)
 
     logger.info('Finished merging files, took {} seconds'.format(time.time() - t0))
 
