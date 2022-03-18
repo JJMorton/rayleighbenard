@@ -139,6 +139,26 @@ def butterworth_filter(data_fft, kbases, kmin=0, kmax=np.inf):
     return data_fft * np.abs(h)
 
 
+def fermi_filter(data_fft, kbases, kmin=0, kmax=np.inf):
+    fermi = lambda k, k0, w: 1 / (1 + np.exp(5 * (k - k0)/w))
+
+    k_space_magnitude = np.array(0)
+    for basis in kbases: k_space_magnitude = np.add.outer(k_space_magnitude, basis*basis)
+    k_space_magnitude = np.sqrt(k_space_magnitude)
+    # Make the filter smoothing cover ~6 values of k
+    width = np.mean([ np.abs(basis[1] - basis[0]) for basis in kbases ]) * 3
+
+    if kmin > 0:
+        # Highpass
+        data_fft = data_fft * fermi(k_space_magnitude, kmin, -width)
+
+    if kmax < np.inf:
+        # Lowpass
+        data_fft = data_fft * fermi(k_space_magnitude, kmax, width)
+
+    return data_fft
+
+
 def kspace_lowpass(data, axes, bases, lambda_cutoff):
     """
     Apply a lowpass filter to `data` along the specified axes.
@@ -155,7 +175,7 @@ def kspace_lowpass(data, axes, bases, lambda_cutoff):
     # Apply the mask
     # the masks are 2d arrays of booleans that can be used to select only low/high frequencies from a transformed array
     cutoff = 2 * np.pi / lambda_cutoff
-    data_fft = butterworth_filter(data_fft, kbases, kmax=cutoff)
+    data_fft = fermi_filter(data_fft, kbases, kmax=cutoff)
 
     # Invert the FFT back to real space
     data_fft_reversed = fft_nd_inverse(data_fft, axes)
@@ -180,7 +200,7 @@ def kspace_highpass(data, axes, bases, lambda_cutoff):
     # Apply the mask
     # the masks are 2d arrays of booleans that can be used to select only low/high frequencies from a transformed array
     cutoff = 2 * np.pi / lambda_cutoff
-    data_fft = butterworth_filter(data_fft, kbases, kmin=cutoff)
+    data_fft = fermi_filter(data_fft, kbases, kmin=cutoff)
 
     # Invert the FFT back to real space
     data_fft_reversed = fft_nd_inverse(data_fft, axes)
