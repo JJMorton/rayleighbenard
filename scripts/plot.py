@@ -98,7 +98,7 @@ def plot_velocities(data_dir, plot_dir):
     image_name = "velocity.png"
     print('Plotting "{}"...'.format(image_name))
     params = utils.read_params(data_dir)
-    filepath = path.join(data_dir, 'state.h5')
+    filepath = path.join(data_dir, 'vel.h5')
     if not path.exists(filepath):
         print("Plotting '{}' requires '{}'".format(image_name, filepath))
         return
@@ -396,7 +396,7 @@ def plot_momentum_terms(data_dir, plot_dir):
     image_name = "momentum_terms.png"
     print('Plotting "{}"...'.format(image_name))
     params = utils.read_params(data_dir)
-    filepath = path.join(data_dir, 'state.h5')
+    filepath = path.join(data_dir, 'vel.h5')
     if not path.exists(filepath):
         print("Plotting '{}' requires '{}'".format(image_name, filepath))
         return
