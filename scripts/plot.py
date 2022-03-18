@@ -625,9 +625,8 @@ def plot_power_spectrum(data_dir, plot_dir):
     E_avsphr = 0.5*(E_u_avsphr + E_v_avsphr + E_w_avsphr)
 
     fig = plt.figure()
-    plt.title("Kinetic Energy Spectrum")
-    plt.xlabel("k")
-    plt.ylabel("E(k)")
+    plt.xlabel("k", fontsize=15)
+    plt.ylabel("E(k)", fontsize=15)
 
     realsize = len(np.fft.rfft(u[:,0,0]))
     plt.loglog(np.arange(0,realsize),((E_avsphr[0:realsize] )),'k')
