@@ -13,5 +13,7 @@
   "average_interval": 0.75,
   "timestep": 1e-05,
   "timestep_analysis": 1e-3,
+  "timestep_state": 1e-1,
+  "timestep_vel": 2e-3,
   "mesh": [8, 16]
 }
