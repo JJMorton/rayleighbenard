@@ -46,7 +46,7 @@ def compute_cutoff(data_dir):
     # Read parameters from file
     params = utils.read_params(data_dir)
     U_sumsq = 0
-    with h5py.File(path.join(data_dir, 'state.h5'), mode='r') as state_file:
+    with h5py.File(path.join(data_dir, 'vel.h5'), mode='r') as state_file:
         dims = state_file['tasks']['u'].dims
         # Read in original un-interpolated fields and the dimension scales
         logger.info("  Reading fields from hdf5 file...")
