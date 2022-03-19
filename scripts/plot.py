@@ -628,7 +628,7 @@ def plot_power_spectrum(data_dir, plot_dir):
     plt.xlabel("k", fontsize=15)
     plt.ylabel("E(k)", fontsize=15)
 
-    realsize = len(np.fft.rfft(u[:,0,0]))
+    realsize = len(np.fft.rfft(u_avgt[:,0,0]))
     plt.loglog(np.arange(0,realsize),((E_avsphr[0:realsize] )),'k')
     plt.loglog(np.arange(realsize,len(E_avsphr),1),((E_avsphr[realsize:] )),'k--')
     axes = plt.gca()
