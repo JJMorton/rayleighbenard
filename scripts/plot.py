@@ -557,9 +557,9 @@ def plot_momentum_terms_filtered(data_dir, plot_dir):
 def plot_power_spectrum(data_dir, plot_dir):
     image_name = "power_spectrum.png"
     print('Plotting "{}"...'.format(image_name))
-    filepath1 = path.join(data_dir_1, 'interp_u.h5')
-    filepath2 = path.join(data_dir_1, 'interp_v.h5')
-    filepath3 = path.join(data_dir_1, 'interp_w.h5')
+    filepath1 = path.join(data_dir, 'interp_u.h5')
+    filepath2 = path.join(data_dir, 'interp_v.h5')
+    filepath3 = path.join(data_dir, 'interp_w.h5')
     params = utils.read_params(data_dir_1)
     if not path.exists(filepath1):
         print("Plotting '{}' requires '{}'".format(image_name, filepath1))
