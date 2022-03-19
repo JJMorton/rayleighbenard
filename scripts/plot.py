@@ -560,7 +560,7 @@ def plot_power_spectrum(data_dir, plot_dir):
     filepath1 = path.join(data_dir, 'interp_u.h5')
     filepath2 = path.join(data_dir, 'interp_v.h5')
     filepath3 = path.join(data_dir, 'interp_w.h5')
-    params = utils.read_params(data_dir_1)
+    params = utils.read_params(data_dir)
     if not path.exists(filepath1):
         print("Plotting '{}' requires '{}'".format(image_name, filepath1))
         return
