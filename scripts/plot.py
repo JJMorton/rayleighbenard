@@ -60,7 +60,8 @@ def average_horizontal(arr):
     return np.mean(np.mean(arr, axis=2), axis=1)
 
 def calc_momentum_terms(params, x, y, z, u, v, w):
-    coeff = np.sin(params["Theta"]) * params["Ta"]**0.5
+    # TODO: IMPORTANT, CHANGE THIS BACK TO BEING +VE WHEN WE'VE FIXED THE EQUATIONS OF MOTION
+    coeff = -np.sin(params["Theta"]) * params["Ta"]**0.5
 
     print("    Viscous X")
     viscous_x = -np.gradient(np.gradient(u, z, axis=-1, edge_order=2), z, axis=-1, edge_order=2) / coeff
@@ -158,14 +159,16 @@ def plot_temperature(data_dir, plot_dir):
     print('Plotting "{}"...'.format(image_name))
     params = utils.read_params(data_dir)
     filepath = path.join(data_dir, 'analysis.h5')
-    filepath2 = path.join(data_dir,'state.h5')
+    filepath2 = path.join(data_dir, 'vel.h5')
     if not path.exists(filepath):
         print("Plotting '{}' requires '{}'".format(image_name, filepath))
         return
+    if not path.exists(filepath2):
+        print("Plotting '{}' requires '{}'".format(image_name, filepath2))
+        return
 
     with h5py.File(filepath2, mode='r') as file:
-
-        t, x, y, z = get_dims(file, 'u')
+        _, x, y, z = get_dims(file, 'u')
 
     with h5py.File(filepath, mode='r') as file:
 
@@ -329,9 +332,9 @@ def plot_velocity_filters(data_dir, plot_dir):
     plots_size_each = np.array((8, 4))
     fig = plt.figure(figsize=plots_shape * plots_size_each)
     if is3D:
-        fig.suptitle('Snapshot of velocities at t={:.2f} and y=Ly/2'.format(duration))
+        fig.suptitle('Snapshot of velocities at t={:.2f} and y=Ly/2\nCutoff wavelength corresponding with Ro={}'.format(duration, params["cutoff_rossby"]))
     else:
-        fig.suptitle('Snapshot of velocities at t={:.2f}')
+        fig.suptitle('Snapshot of velocities at t={:.2f}\nCutoff wavelength corresponding with Ro={}'.format(duration, params["cutoff_rossby"]))
 
     ax = fig.add_subplot(*plots_shape, 1)
     ax.set_title("u")
@@ -443,7 +446,7 @@ def plot_momentum_terms(data_dir, plot_dir):
     ax.set_title("Meridional (north-south) component")
     ax.axvline(0, lw=1, c='darkgray')
     ax.plot(viscous_x, z, label="Viscous", c='green')
-    ax.plot(-coriolis_x, z, label="Mean flow", c='black')
+    ax.plot(-coriolis_x, z, label="Mean flow", c='blue')
     ax.plot(rs_x, z, label="Stress d/dz <uw>", c='red')
     ax.legend()
     ax.set_ylabel('z')
@@ -452,7 +455,7 @@ def plot_momentum_terms(data_dir, plot_dir):
     ax.set_title("Zonal (west-east) component")
     ax.axvline(0, lw=1, c='darkgray')
     ax.plot(-viscous_y, z, label="Viscous", c='green')
-    ax.plot(coriolis_y, z, label="Mean flow", c='black')
+    ax.plot(coriolis_y, z, label="Mean flow", c='blue')
     ax.plot(-rs_y, z, label="Stress d/dz <vw>", c='red')
     ax.legend()
     ax.set_ylabel('z')
@@ -522,31 +525,35 @@ def plot_momentum_terms_filtered(data_dir, plot_dir):
     tstart = t[0]
     tend = t[-1]
     fig = plt.figure(figsize=plots_shape[::-1] * plots_size_each)
-    fig.suptitle("Terms of the averaged momentum equation\nAveraged in t from {:.2f} to {:.2f} viscous times".format(tstart, tend))
+    fig.suptitle(
+        "Terms of the averaged momentum equation\n" +
+        "Averaged in t from {:.2f} to {:.2f} viscous times\n".format(tstart, tend) +
+        "Cutoff wavelength corresponding with Ro={}".format(params["cutoff_rossby"])
+    )
 
     ax = fig.add_subplot(*plots_shape, 1)
     ax.set_title("Meridional (north-south) component")
     ax.axvline(0, lw=1, c='darkgray')
-    ax.plot(mean_x, z, label="Mean flow", c='lightgray', lw=4)
+    ax.plot(mean_x, z, label="Mean flow", c='lightblue', lw=4)
     # ax.plot(viscous_x, z, label="Viscous", c='green')
-    ax.plot(viscous_x_low, z, label="Viscous (lowpass)", lw=1, ls='--', c='green')
-    ax.plot(viscous_x_high, z, label="Viscous (highpass)", lw=1, ls=':', c='green')
+    ax.plot(viscous_x_low, z, label="Viscous (lowpass)", lw=2, ls='--', c='green')
+    ax.plot(viscous_x_high, z, label="Viscous (highpass)", lw=2, ls=':', c='green')
     # ax.plot(rs_x, z, label="Stress d/dz <uw>", c='red')
-    ax.plot(rs_x_low, z, label="Stress (lowpass)", lw=1, ls='--', c='red')
-    ax.plot(rs_x_high, z, label="Stress (highpass)", lw=1, ls=':', c='red')
+    ax.plot(rs_x_low, z, label="Stress (lowpass)", lw=2, ls='--', c='red')
+    ax.plot(rs_x_high, z, label="Stress (highpass)", lw=2, ls=':', c='red')
     ax.legend()
     ax.set_ylabel('z')
 
     ax = fig.add_subplot(*plots_shape, 2)
     ax.set_title("Zonal (west-east) component")
     ax.axvline(0, lw=1, c='darkgray')
-    ax.plot(mean_y, z, label="Mean flow", c='lightgray', lw=4)
+    ax.plot(mean_y, z, label="Mean flow", c='lightblue', lw=4)
     # ax.plot(-viscous_y, z, label="Viscous", c='green')
-    ax.plot(-viscous_y_low, z, label="Viscous (lowpass)", lw=1, ls='--', c='green')
-    ax.plot(-viscous_y_high, z, label="Viscous (highpass)", lw=1, ls=':', c='green')
+    ax.plot(-viscous_y_low, z, label="Viscous (lowpass)", lw=2, ls='--', c='green')
+    ax.plot(-viscous_y_high, z, label="Viscous (highpass)", lw=2, ls=':', c='green')
     # ax.plot(-rs_y, z, label="Stress d/dz <vw>", c='red')
-    ax.plot(-rs_y_low, z, label="Stress (lowpass)", lw=1, ls='--', c='red')
-    ax.plot(-rs_y_high, z, label="Stress (highpass)", lw=1, ls=':', c='red')
+    ax.plot(-rs_y_low, z, label="Stress (lowpass)", lw=2, ls='--', c='red')
+    ax.plot(-rs_y_high, z, label="Stress (highpass)", lw=2, ls=':', c='red')
     ax.legend()
     ax.set_ylabel('z')
 
@@ -560,7 +567,7 @@ def plot_power_spectrum(data_dir, plot_dir):
     filepath1 = path.join(data_dir, 'interp_u.h5')
     filepath2 = path.join(data_dir, 'interp_v.h5')
     filepath3 = path.join(data_dir, 'interp_w.h5')
-    params = utils.read_params(data_dir_1)
+    params = utils.read_params(data_dir)
     if not path.exists(filepath1):
         print("Plotting '{}' requires '{}'".format(image_name, filepath1))
         return
@@ -681,6 +688,10 @@ if __name__ == "__main__":
         mkdir(plot_dir)
     except FileExistsError:
         pass
+
+    # For the poster:
+    plt.rcParams.update({'font.size': 12})
+    plt.rcParams['figure.dpi'] = 100
 
     plot_velocities(data_dir, plot_dir)
     plot_temperature(data_dir, plot_dir)
