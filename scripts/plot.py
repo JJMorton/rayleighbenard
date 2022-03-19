@@ -624,6 +624,8 @@ def plot_power_spectrum(data_dir, plot_dir):
         
     E_avsphr = 0.5*(E_u_avsphr + E_v_avsphr + E_w_avsphr)
 
+    E_avsphr = E_avsphr[::-1]
+
     fig = plt.figure()
     plt.xlabel("k", fontsize=15)
     plt.ylabel("E(k)", fontsize=15)
