@@ -69,7 +69,10 @@ def compute_cutoff(data_dir):
         del w
     U_rms = np.sqrt(U_sumsq)
     logger.info("  Calculated U_rms = {}".format(U_rms))
-    return U_rms / (np.sqrt(params["Ta"]) * np.sin(params["Theta"]))
+
+    Ro = params["cutoff_rossby"] || 1.0
+    print("Using filtering cutoff corresponding with Ro={}".format(Ro))
+    return U_rms / (np.sqrt(params["Ta"]) * Ro * np.sin(params["Theta"]))
 
 
 def interp(data_dir, f, wavelength_cutoff):
