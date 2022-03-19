@@ -15,5 +15,6 @@
   "timestep_analysis": 1e-3,
   "timestep_state": 1e-1,
   "timestep_vel": 2e-3,
-  "mesh": [8, 16]
+  "mesh": [8, 16],
+  "cutoff_rossby": 0.2
 }

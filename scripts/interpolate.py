@@ -40,7 +40,42 @@ def interp_along_axis(arr, axis, basis):
     return interped
 
 
-def interp(data_dir, f):
+def compute_cutoff(data_dir):
+
+    logger.info("Calculating cutoff frequency...")
+    # Read parameters from file
+    params = utils.read_params(data_dir)
+    U_sumsq = 0
+    with h5py.File(path.join(data_dir, 'state.h5'), mode='r') as state_file:
+        dims = state_file['tasks']['u'].dims
+        # Read in original un-interpolated fields and the dimension scales
+        logger.info("  Reading fields from hdf5 file...")
+
+        dims = state_file['tasks']['u'].dims
+        t = np.array(dims[0]["sim_time"])
+        duration = min(params['duration'], t[-1])
+        if duration < params['average_interval']:
+            print('WARNING: averaging interval longer than simulation duration, averaging over entire duration...')
+        timeframe_mask = np.logical_and(t >= duration - params['average_interval'], t <= duration)
+
+        u = np.array(state_file['tasks']['u'], dtype='d')[timeframe_mask]
+        U_sumsq += np.mean(u**2)
+        del u
+        v = np.array(state_file['tasks']['v'], dtype='d')[timeframe_mask]
+        U_sumsq += np.mean(v**2)
+        del v
+        w = np.array(state_file['tasks']['w'], dtype='d')[timeframe_mask]
+        U_sumsq += np.mean(w**2)
+        del w
+    U_rms = np.sqrt(U_sumsq)
+    logger.info("  Calculated U_rms = {}".format(U_rms))
+
+    Ro = params["cutoff_rossby"] || 1.0
+    print("Using filtering cutoff corresponding with Ro={}".format(Ro))
+    return U_rms / (np.sqrt(params["Ta"]) * Ro * np.sin(params["Theta"]))
+
+
+def interp(data_dir, f, wavelength_cutoff):
 
     # Read parameters from file
     params = utils.read_params(data_dir)
@@ -97,15 +132,13 @@ def interp(data_dir, f):
 
     print("Rank {} has array of shape {}, starting interpolation and filtering".format(rank, vel.shape))
 
-    # wavelength = params['Lz'] / 2
-    wavelength = 0.113137
     lowpass = np.zeros(vel.shape)
     highpass = np.zeros(vel.shape)
     z_fourier = np.linspace(z[0], z[-1], len(z))
     for i in range(vel.shape[0]):
         vel[i] = interp_along_axis(vel[i], -1, z)
-        lowpass[i] = filtering.kspace_lowpass(vel[i], (0, 1, 2), (x, y, z_fourier), wavelength)
-        highpass[i] = filtering.kspace_highpass(vel[i], (0, 1, 2), (x, y, z_fourier), wavelength)
+        lowpass[i] = filtering.kspace_lowpass(vel[i], (0, 1, 2), (x, y, z_fourier), wavelength_cutoff)
+        highpass[i] = filtering.kspace_highpass(vel[i], (0, 1, 2), (x, y, z_fourier), wavelength_cutoff)
         # if i % (vel.shape[0] // 5) == 0:
             # print("Rank {} is at {}%".format(rank, np.round(100 * i / vel.shape[0], 1)))
 
@@ -154,7 +187,17 @@ if __name__ == '__main__':
         exit(1)
     data_dir = sys.argv[1]
 
+    comm = MPI.COMM_WORLD
+    num_ranks = comm.size
+    rank = comm.Get_rank()
+
+    cutoff = None
+    if rank == 0:
+        cutoff = compute_cutoff(data_dir)
+    cutoff = comm.bcast(cutoff, root=0)
+    logger.info("Using cutoff wavelength of {}".format(cutoff))
+
     fields = ['u', 'v', 'w']
     for f in fields:
-        interp(data_dir, f)
+        interp(data_dir, f, cutoff)
 

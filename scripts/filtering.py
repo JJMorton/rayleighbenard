@@ -10,7 +10,7 @@ try:
 except ImportError:
     PerlinNoise = None
 
-import scipy.interpolate as interpolate
+from scipy import signal
 
 def create_linear_bases(bases):
     """
@@ -115,6 +115,26 @@ def radius_filter(data_fft, kbases, kmin=0, kmax=np.inf):
 
     # Apply the mask
     return np.where(mask, data_fft, 0)
+
+
+def fermi_filter(data_fft, kbases, kmin=0, kmax=np.inf):
+    fermi = lambda k, k0, w: 1 / (1 + np.exp(5 * (k - k0)/w))
+
+    k_space_magnitude = np.array(0)
+    for basis in kbases: k_space_magnitude = np.add.outer(k_space_magnitude, basis*basis)
+    k_space_magnitude = np.sqrt(k_space_magnitude)
+    # Make the filter smoothing cover ~6 values of k
+    width = np.mean([ np.abs(basis[1] - basis[0]) for basis in kbases ]) * 3
+
+    if kmin > 0:
+        # Highpass
+        data_fft = data_fft * fermi(k_space_magnitude, kmin, -width)
+
+    if kmax < np.inf:
+        # Lowpass
+        data_fft = data_fft * fermi(k_space_magnitude, kmax, width)
+
+    return data_fft
 
 
 def kspace_lowpass(data, axes, bases, lambda_cutoff):
