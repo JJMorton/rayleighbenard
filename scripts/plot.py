@@ -60,20 +60,27 @@ def average_horizontal(arr):
     return np.mean(np.mean(arr, axis=2), axis=1)
 
 def calc_momentum_terms(params, x, y, z, u, v, w):
-    # TODO: IMPORTANT, CHANGE THIS BACK TO BEING +VE WHEN WE'VE FIXED THE EQUATIONS OF MOTION
-    coeff = -np.sin(params["Theta"]) * params["Ta"]**0.5
+    """
+    Returns the terms of the averaged momentum equation, with signs as they are
+    in the form "mean flow = RS + viscous", i.e. the mean flow should be equal
+    to the sum of the other two terms.
+    """
+
+    # We have cos here (instead of sin as in other research) because we are taking
+    # theta as an angle from the vertical, not from the latitude
+    coeff = np.cos(params["Theta"]) * params["Ta"]**0.5
 
     print("    Viscous X")
     viscous_x = -np.gradient(np.gradient(u, z, axis=-1, edge_order=2), z, axis=-1, edge_order=2) / coeff
     viscous_x_avg = np.mean(average_horizontal(viscous_x), axis=0)
     del viscous_x
     print("    Viscous Y")
-    viscous_y = -np.gradient(np.gradient(v, z, axis=-1, edge_order=2), z, axis=-1, edge_order=2) / coeff
+    viscous_y = np.gradient(np.gradient(v, z, axis=-1, edge_order=2), z, axis=-1, edge_order=2) / coeff
     viscous_y_avg = np.mean(average_horizontal(viscous_y), axis=0)
     del viscous_y
 
     print("    Coriolis X")
-    coriolis_x_avg = -np.mean(average_horizontal(v), axis=0)
+    coriolis_x_avg = np.mean(average_horizontal(v), axis=0)
     print("    Coriolis Y")
     coriolis_y_avg = np.mean(average_horizontal(u), axis=0)
 
@@ -85,7 +92,7 @@ def calc_momentum_terms(params, x, y, z, u, v, w):
     print("    RS X")
     stress_x = np.gradient(np.mean(average_horizontal((u - u_avgt) * (w - w_avgt)), axis=0), z, axis=-1, edge_order=2) / coeff
     print("    RS Y")
-    stress_y = np.mean(np.gradient(average_horizontal((v - v_avgt) * (w - w_avgt)), z, axis=-1, edge_order=2), axis=0) / coeff
+    stress_y = -np.mean(np.gradient(average_horizontal((v - v_avgt) * (w - w_avgt)), z, axis=-1, edge_order=2), axis=0) / coeff
 
     del u_avgt
     del v_avgt
@@ -446,7 +453,7 @@ def plot_momentum_terms(data_dir, plot_dir):
     ax.set_title("Meridional (north-south) component")
     ax.axvline(0, lw=1, c='darkgray')
     ax.plot(viscous_x, z, label="Viscous", c='green')
-    ax.plot(-coriolis_x, z, label="Mean flow", c='blue')
+    ax.plot(coriolis_x, z, label="Mean flow", c='blue')
     ax.plot(rs_x, z, label="Stress d/dz <uw>", c='red')
     ax.legend()
     ax.set_ylabel('z')
@@ -454,9 +461,9 @@ def plot_momentum_terms(data_dir, plot_dir):
     ax = fig.add_subplot(*plots_shape, 2)
     ax.set_title("Zonal (west-east) component")
     ax.axvline(0, lw=1, c='darkgray')
-    ax.plot(-viscous_y, z, label="Viscous", c='green')
+    ax.plot(viscous_y, z, label="Viscous", c='green')
     ax.plot(coriolis_y, z, label="Mean flow", c='blue')
-    ax.plot(-rs_y, z, label="Stress d/dz <vw>", c='red')
+    ax.plot(rs_y, z, label="Stress d/dz <vw>", c='red')
     ax.legend()
     ax.set_ylabel('z')
 
@@ -548,12 +555,12 @@ def plot_momentum_terms_filtered(data_dir, plot_dir):
     ax.set_title("Zonal (west-east) component")
     ax.axvline(0, lw=1, c='darkgray')
     ax.plot(mean_y, z, label="Mean flow", c='lightblue', lw=4)
-    # ax.plot(-viscous_y, z, label="Viscous", c='green')
-    ax.plot(-viscous_y_low, z, label="Viscous (lowpass)", lw=2, ls='--', c='green')
-    ax.plot(-viscous_y_high, z, label="Viscous (highpass)", lw=2, ls=':', c='green')
-    # ax.plot(-rs_y, z, label="Stress d/dz <vw>", c='red')
-    ax.plot(-rs_y_low, z, label="Stress (lowpass)", lw=2, ls='--', c='red')
-    ax.plot(-rs_y_high, z, label="Stress (highpass)", lw=2, ls=':', c='red')
+    # ax.plot(viscous_y, z, label="Viscous", c='green')
+    ax.plot(viscous_y_low, z, label="Viscous (lowpass)", lw=2, ls='--', c='green')
+    ax.plot(viscous_y_high, z, label="Viscous (highpass)", lw=2, ls=':', c='green')
+    # ax.plot(rs_y, z, label="Stress d/dz <vw>", c='red')
+    ax.plot(rs_y_low, z, label="Stress (lowpass)", lw=2, ls='--', c='red')
+    ax.plot(rs_y_high, z, label="Stress (highpass)", lw=2, ls=':', c='red')
     ax.legend()
     ax.set_ylabel('z')
 
