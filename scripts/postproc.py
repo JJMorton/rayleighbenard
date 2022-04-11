@@ -57,6 +57,11 @@ def average_horizontal(arr):
         raise Exception("Attempt to horizontally average array with {} dimensions".format(dims))
     return np.mean(np.mean(arr, axis=2), axis=1)
 
+# Numpy gradient function along the z direction, working with numpy ver >= 1.9.1
+def gradientz(arr, z):
+    spacings = [np.arange(res) for res in arr.shape][:-1]
+    return np.gradient(arr, *spacings, z, edge_order=2)[-1]
+
 def momentum_terms(params, x, y, z, u, v, w):
     """
     Returns the terms of the averaged momentum equation, with signs as they are
@@ -69,11 +74,11 @@ def momentum_terms(params, x, y, z, u, v, w):
     coeff = np.cos(params["Theta"]) * params["Ta"]**0.5
 
     print("    Viscous X")
-    viscous_x = -np.gradient(np.gradient(u, z, axis=-1, edge_order=2), z, axis=-1, edge_order=2) / coeff
+    viscous_x = -gradientz(gradientz(u, z), z) / coeff
     viscous_x_avg = np.mean(average_horizontal(viscous_x), axis=0)
     del viscous_x
     print("    Viscous Y")
-    viscous_y = np.gradient(np.gradient(v, z, axis=-1, edge_order=2), z, axis=-1, edge_order=2) / coeff
+    viscous_y = gradientz(gradientz(v, z), z) / coeff
     viscous_y_avg = np.mean(average_horizontal(viscous_y), axis=0)
     del viscous_y
 
@@ -88,9 +93,9 @@ def momentum_terms(params, x, y, z, u, v, w):
     w_avgt = np.mean(w, axis=0)
 
     print("    RS X")
-    stress_x = np.mean(np.gradient(average_horizontal((u - u_avgt) * (w - w_avgt)), z, axis=-1, edge_order=2), axis=0) / coeff
+    stress_x = np.mean(gradientz(average_horizontal((u - u_avgt) * (w - w_avgt)), z), axis=0) / coeff
     print("    RS Y")
-    stress_y = -np.mean(np.gradient(average_horizontal((v - v_avgt) * (w - w_avgt)), z, axis=-1, edge_order=2), axis=0) / coeff
+    stress_y = -np.mean(gradientz(average_horizontal((v - v_avgt) * (w - w_avgt)), z), axis=0) / coeff
 
     del u_avgt
     del v_avgt
