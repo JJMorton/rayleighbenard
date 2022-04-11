@@ -161,10 +161,15 @@ def interp(data_dir, f, wavelength_cutoff):
         # Now have the complete interpolation, output to h5 file
         with h5py.File(filepath, 'w') as interp_file:
             scales = interp_file.create_group("scales")
-            scale_t = scales.create_dataset('t', data=t).make_scale()
-            scale_x = scales.create_dataset('x', data=x).make_scale()
-            scale_y = scales.create_dataset('y', data=y).make_scale()
-            scale_z = scales.create_dataset('z', data=z_fourier).make_scale()
+            scale_t = scales.create_dataset('t', data=t)
+            scale_x = scales.create_dataset('x', data=x)
+            scale_y = scales.create_dataset('y', data=y)
+            scale_z = scales.create_dataset('z', data=z_fourier)
+            if hasattr(scale_t, "make_scale"):
+                scale_t = scale_t.make_scale()
+                scale_x = scale_x.make_scale()
+                scale_y = scale_y.make_scale()
+                scale_z = scale_z.make_scale()
             tasks = interp_file.create_group("tasks")
             datasets = (
                 tasks.create_dataset(f, data=vel_all),
