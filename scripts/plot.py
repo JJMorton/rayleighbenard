@@ -14,6 +14,9 @@ import dedalus.public as de
 import filtering
 import utils
 
+plt.style.use("science")
+plt.rcParams["font.size"] = 10
+plt.rcParams["axes.titlesize"] = 10
 
 def get_field(file, fieldname):
     """Get a field from the .h5 file, with dimensions (t, x, y, z)"""
@@ -90,7 +93,7 @@ def calc_momentum_terms(params, x, y, z, u, v, w):
     w_avgt = np.mean(w, axis=0)
 
     print("    RS X")
-    stress_x = np.gradient(np.mean(average_horizontal((u - u_avgt) * (w - w_avgt)), axis=0), z, axis=-1, edge_order=2) / coeff
+    stress_x = np.mean(np.gradient(average_horizontal((u - u_avgt) * (w - w_avgt)), z, axis=-1, edge_order=2), axis=0) / coeff
     print("    RS Y")
     stress_y = -np.mean(np.gradient(average_horizontal((v - v_avgt) * (w - w_avgt)), z, axis=-1, edge_order=2), axis=0) / coeff
 
@@ -99,6 +102,81 @@ def calc_momentum_terms(params, x, y, z, u, v, w):
     del w_avgt
 
     return viscous_x_avg, viscous_y_avg, coriolis_x_avg, coriolis_y_avg, stress_x, stress_y
+
+
+def plot_stresses(data_dir, plot_dir):
+    image_name = "stresses.pdf"
+    print('Plotting "{}"...'.format(image_name))
+    params = utils.read_params(data_dir)
+    filepath = path.join(data_dir, 'vel.h5')
+    if not path.exists(filepath):
+        print("Plotting '{}' requires '{}'".format(image_name, filepath))
+        return
+
+    print("  Reading velocity fields from file...")
+    with h5py.File(filepath, mode='r') as file:
+
+        t, x, y, z = get_dims(file, 'u')
+
+        duration = min(params['duration'], t[-1])
+        if duration < params['average_interval']: print('WARNING: averaging interval longer than simulation duration, averaging over entire duration...')
+        tstart = duration - params['average_interval']
+        timeframe_mask = np.logical_and(t >= tstart, t <= duration)
+
+        t = t[timeframe_mask]
+
+        print("    u")
+        u = get_field(file, 'u')[timeframe_mask]
+        u_avgt = np.mean(u, axis=0, keepdims=True)
+        pert_u = u - u_avgt
+        del u
+        del u_avgt
+        print("    v")
+        v = get_field(file, 'v')[timeframe_mask]
+        v_avgt = np.mean(v, axis=0, keepdims=True)
+        pert_v = v - v_avgt
+        del v
+        del v_avgt
+        print("    w")
+        w = get_field(file, 'w')[timeframe_mask]
+        w_avgt = np.mean(w, axis=0, keepdims=True)
+        pert_w = w - w_avgt
+        del w
+        del w_avgt
+
+    print("  Calculating stresses...")
+    stress_uw = np.mean(average_horizontal(pert_u * pert_w), axis=0)
+    stress_vw = np.mean(average_horizontal(pert_v * pert_w), axis=0)
+    stress_uv = np.mean(average_horizontal(pert_u * pert_v), axis=0)
+
+    # Plot everything on two plots
+    print("  Plotting...")
+    plots_shape = np.array((1, 1))
+    plots_size_each = np.array((3.2, 2.7))
+
+    tstart = duration - params['average_interval']
+    tend = duration
+    fig = plt.figure(figsize=plots_shape[::-1] * plots_size_each)
+    # fig.suptitle(
+    #     "Terms of the averaged momentum equation\n" +
+    #     "Averaged in t from {:.2f} to {:.2f} viscous times\n".format(tstart, tend)
+    # )
+
+    ax = fig.add_subplot(*plots_shape, 1)
+    ax.axvline(0, lw=1, c='lightgray')
+    ax.plot(stress_uw, z, label=r"$\langle uw \rangle$")
+    ax.plot(stress_vw, z, label=r"$\langle vw \rangle$")
+    ax.plot(stress_uv, z, label=r"$\langle uv \rangle$")
+    ax.set_ylabel(r'$z$')
+
+    box = ax.get_position()
+    ax.set_position([box.x0, box.y0 + box.height * 0.1, box.width, box.height * 0.9])
+    # Put a legend below current axis
+    ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.05), shadow=False, ncol=5, columnspacing=1)
+
+    fig.set_tight_layout(True)
+    plt.savefig(path.join(plot_dir, image_name))
+    plt.close()
 
 
 def plot_velocities(data_dir, plot_dir):
@@ -403,7 +481,7 @@ def plot_velocity_filters(data_dir, plot_dir):
 
 
 def plot_momentum_terms(data_dir, plot_dir):
-    image_name = "momentum_terms.png"
+    image_name = "momentum_terms.pdf"
     print('Plotting "{}"...'.format(image_name))
     params = utils.read_params(data_dir)
     filepath = path.join(data_dir, 'vel.h5')
@@ -439,33 +517,39 @@ def plot_momentum_terms(data_dir, plot_dir):
     # Plot everything on two plots
     print("  Plotting...")
     plots_shape = np.array((2, 1))
-    plots_size_each = np.array((8, 4))
+    plots_size_each = np.array((3.2, 2.7))
 
     tstart = duration - params['average_interval']
     tend = duration
     fig = plt.figure(figsize=plots_shape[::-1] * plots_size_each)
-    fig.suptitle(
-        "Terms of the averaged momentum equation\n" +
-        "Averaged in t from {:.2f} to {:.2f} viscous times\n".format(tstart, tend)
-    )
+    # fig.suptitle(
+    #     "Terms of the averaged momentum equation\n" +
+    #     "Averaged in t from {:.2f} to {:.2f} viscous times\n".format(tstart, tend)
+    # )
 
     ax = fig.add_subplot(*plots_shape, 1)
-    ax.set_title("Meridional (north-south) component")
-    ax.axvline(0, lw=1, c='darkgray')
-    ax.plot(viscous_x, z, label="Viscous", c='green')
-    ax.plot(coriolis_x, z, label="Mean flow", c='blue')
-    ax.plot(rs_x, z, label="Stress d/dz <uw>", c='red')
-    ax.legend()
-    ax.set_ylabel('z')
+    ax.set_title("Zonal Mean Flow")
+    ax.axvline(0, lw=1, c='lightgray')
+    ax.plot(viscous_x, z, label="Viscous", c='green', ls='-.')
+    ax.plot(coriolis_x, z, label="Mean flow", c='blue', lw=2)
+    ax.plot(rs_x, z, label="Stress", c='red')
+    # ax.legend()
+    ax.set_ylabel(r'$z$')
 
     ax = fig.add_subplot(*plots_shape, 2)
-    ax.set_title("Zonal (west-east) component")
-    ax.axvline(0, lw=1, c='darkgray')
-    ax.plot(viscous_y, z, label="Viscous", c='green')
-    ax.plot(coriolis_y, z, label="Mean flow", c='blue')
-    ax.plot(rs_y, z, label="Stress d/dz <vw>", c='red')
-    ax.legend()
-    ax.set_ylabel('z')
+    ax.set_title("Meridional Mean Flow")
+    ax.axvline(0, lw=1, c='lightgray')
+    ax.plot(viscous_y, z, label="Viscous", c='green', ls='-.')
+    ax.plot(coriolis_y, z, label="Mean flow", c='blue', lw=2)
+    ax.plot(rs_y, z, label="Stress", c='red')
+    # ax.legend()
+    ax.set_ylabel(r'$z$')
+
+    box = ax.get_position()
+    ax.set_position([box.x0, box.y0 + box.height * 0.1, box.width, box.height * 0.9])
+
+    # Put a legend below current axis
+    ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.05), shadow=False, ncol=5, columnspacing=1)
 
     fig.set_tight_layout(True)
     plt.savefig(path.join(plot_dir, image_name))
@@ -569,7 +653,7 @@ def plot_momentum_terms_filtered(data_dir, plot_dir):
     plt.close()
 
 def plot_power_spectrum(data_dir, plot_dir):
-    image_name = "power_spectrum.png"
+    image_name = "power_spectrum.pdf"
     print('Plotting "{}"...'.format(image_name))
     filepath1 = path.join(data_dir, 'interp_u.h5')
     filepath2 = path.join(data_dir, 'interp_v.h5')
@@ -640,9 +724,9 @@ def plot_power_spectrum(data_dir, plot_dir):
 
     E_avsphr = E_avsphr[::-1]
 
-    fig = plt.figure()
-    plt.xlabel("k", fontsize=15)
-    plt.ylabel("E(k)", fontsize=15)
+    fig = plt.figure(figsize=(3.2, 2.5))
+    plt.xlabel(r"$k$")
+    plt.ylabel(r"$E(k)$")
 
     realsize = len(np.fft.rfft(u_avgt[:,0,0]))
     plt.loglog(np.arange(0,realsize),((E_avsphr[0:realsize] )),'k')
@@ -696,18 +780,15 @@ if __name__ == "__main__":
     except FileExistsError:
         pass
 
-    # For the poster:
-    plt.rcParams.update({'font.size': 12})
-    plt.rcParams['figure.dpi'] = 100
-
-    plot_velocities(data_dir, plot_dir)
-    plot_temperature(data_dir, plot_dir)
-    plot_heat_flux_z(data_dir, plot_dir)
-    plot_energy(data_dir, plot_dir)
-    plot_velocity_filters(data_dir, plot_dir)
+    # plot_velocities(data_dir, plot_dir)
+    # plot_temperature(data_dir, plot_dir)
+    # plot_heat_flux_z(data_dir, plot_dir)
+    # plot_energy(data_dir, plot_dir)
+    # plot_velocity_filters(data_dir, plot_dir)
+    plot_stresses(data_dir, plot_dir)
     plot_momentum_terms(data_dir, plot_dir)
-    plot_momentum_terms_filtered(data_dir, plot_dir)
-    plot_power_spectrum(data_dir, plot_dir)
+    # plot_momentum_terms_filtered(data_dir, plot_dir)
+    # plot_power_spectrum(data_dir, plot_dir)
     # video(data_dir, plot_dir)
 
     print("Done.")
