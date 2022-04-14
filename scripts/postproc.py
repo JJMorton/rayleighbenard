@@ -13,8 +13,6 @@ import sys
 
 import utils
 
-from memory_profiler import memory_usage
-
 def get_field(file, fieldname):
     """Get a field from the .h5 file, with dimensions (t, x, y, z)"""
     return file['tasks'][fieldname]
@@ -460,6 +458,5 @@ def main():
     print("Done.")
 
 if __name__ == "__main__":
-    mem_usage = memory_usage(main)
-    print('Maximum memory usage: %sMB' % max(mem_usage))
+    main()
 
