@@ -111,14 +111,16 @@ def interp(data_dir, f, wavelength_cutoff):
             logger.info("Cropped to {} timesteps, according to 'average_interval' parameter".format(len(t)))
 
             if num_ranks > len(t):
-                logger.info("Require num processes <= num timesteps")
-                exit(1)
+                logger.info("WARNING: Using {} ranks to interpolate {} timesteps, {} ranks will be unused".format(num_ranks, len(t), num_ranks - len(t)))
+            use_ranks = min(num_ranks, len(t))
 
         # Split up the timesteps equally across all ranks, and give the remaining ones to rank 0
         # senddata = np.array(np.array_split(vel, num_ranks))
         senddata = vel
-        timesteps = [vel.shape[0] // num_ranks] * (num_ranks - 1)
-        timesteps.append(vel.shape[0] - timesteps[0] * (num_ranks - 1))
+        timesteps = [vel.shape[0] // use_ranks] * (use_ranks - 1)
+        timesteps.append(vel.shape[0] - timesteps[0] * (use_ranks - 1))
+        if use_ranks < num_ranks:
+            timesteps.append(*([0] * (num_ranks - use_ranks)))
         sizes = [len(x) * len(y) * len(z) * len_t for len_t in timesteps]
         offsets = np.insert(np.cumsum(sizes), 0, 0)[0:-1]
 
