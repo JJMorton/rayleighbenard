@@ -11,6 +11,9 @@ from os import path
 from os import mkdir
 import sys
 
+import logging
+logger = logging.getLogger(__name__)
+
 import utils
 
 def get_field(file, fieldname):
@@ -89,37 +92,37 @@ def momentum_terms(params, t, z, u, v, w):
     """
 
     duration = min(params['duration'], t[-1])
-    if duration < params['average_interval']: print('WARNING: averaging interval longer than simulation duration, averaging over entire duration...')
+    if duration < params['average_interval']: logger.info('WARNING: averaging interval longer than simulation duration, averaging over entire duration...')
     tstart = max(duration - params['average_interval'], 0)
 
     # We have cos here (instead of sin as in other research) because we are taking
     # theta as an angle from the vertical, not from the latitude
     coeff = np.cos(params["Theta"]) * params["Ta"]**0.5
 
-    print("    Viscous X")
+    logger.info("    Viscous X")
     viscous_x = average_horizontal(average_in_time(t, tstart, lambda i: -gradientz(gradientz(u[i], z), z) / coeff))
-    print("    Viscous Y")
+    logger.info("    Viscous Y")
     viscous_y = average_horizontal(average_in_time(t, tstart, lambda i: gradientz(gradientz(v[i], z), z) / coeff))
     # viscous_y = gradientz(gradientz(v, z), z) / coeff
     # viscous_y_avg = np.mean(average_horizontal(viscous_y), axis=0)
     # del viscous_y
 
-    print("    Coriolis X")
+    logger.info("    Coriolis X")
     coriolis_x = average_in_time(t, tstart, lambda i: average_horizontal(v[i]))
     # coriolis_x_avg = np.mean(average_horizontal(v), axis=0)
-    print("    Coriolis Y")
+    logger.info("    Coriolis Y")
     coriolis_y = average_in_time(t, tstart, lambda i: average_horizontal(u[i]))
 
-    print("    Time averages")
+    logger.info("    Time averages")
     u_avgt = np.array(average_in_time(t, tstart, lambda i: u[i]))
     v_avgt = np.array(average_in_time(t, tstart, lambda i: v[i]))
     w_avgt = np.array(average_in_time(t, tstart, lambda i: w[i]))
 
-    print("    RS X")
+    logger.info("    RS X")
     # stress_x = np.mean(gradientz(average_horizontal((u - u_avgt) * (w - w_avgt)), z), axis=0) / coeff
     stress_x = average_in_time(t, tstart, lambda i: (np.array(u[i]) - u_avgt) * (np.array(w[i]) - w_avgt)) / coeff
     stress_x = gradientz(average_horizontal(stress_x), z)
-    print("    RS Y")
+    logger.info("    RS Y")
     # stress_y = -np.mean(gradientz(average_horizontal((v - v_avgt) * (w - w_avgt)), z), axis=0) / coeff
     stress_y = -average_in_time(t, tstart, lambda i: (np.array(v[i]) - v_avgt) * (np.array(w[i]) - w_avgt)) / coeff
     stress_y = gradientz(average_horizontal(stress_y), z)
@@ -129,11 +132,11 @@ def momentum_terms(params, t, z, u, v, w):
 
 def calc_velocities(data_dir, output_dir):
     """Plot the time averaged velocities"""
-    print('Calculating average velocities')
+    logger.info('Calculating average velocities')
     params = utils.read_params(data_dir)
     filepath = path.join(data_dir, 'vel.h5')
     if not path.exists(filepath):
-        print("  '{}' is required, skipping".format(filepath))
+        logger.info("  '{}' is required, skipping".format(filepath))
         return
 
     with h5py.File(filepath, mode='r') as file:
@@ -141,7 +144,7 @@ def calc_velocities(data_dir, output_dir):
         t, x, y, z = get_dims(file, 'u')
 
         duration = min(params['duration'], t[-1])
-        if duration < params['average_interval']: print('WARNING: averaging interval longer than simulation duration, averaging over entire duration...')
+        if duration < params['average_interval']: logger.info('WARNING: averaging interval longer than simulation duration, averaging over entire duration...')
         tstart = max(duration - params['average_interval'], 0)
 
         u = get_field(file, 'u')
@@ -161,10 +164,10 @@ def calc_velocities(data_dir, output_dir):
 
 
 def calc_temperature(data_dir, output_dir):
-    print('Calculating temperature snapshots...')
+    logger.info('Calculating temperature snapshots...')
     filepath = path.join(data_dir, 'analysis.h5')
     if not path.exists(filepath):
-        print("  '{}' is required, skipping".format(filepath))
+        logger.info("  '{}' is required, skipping".format(filepath))
         return
     with h5py.File(filepath, mode='r') as file:
         Ttop = np.squeeze(get_field(file, 'Ttop')[-1])
@@ -176,11 +179,11 @@ def calc_temperature(data_dir, output_dir):
 
 
 def calc_heat_flux_z(data_dir, output_dir):
-    print('Calculating heat fluxes...')
+    logger.info('Calculating heat fluxes...')
     params = utils.read_params(data_dir)
     filepath = path.join(data_dir, 'analysis.h5')
     if not path.exists(filepath):
-        print("  '{}' is required, skipping".format(filepath))
+        logger.info("  '{}' is required, skipping".format(filepath))
         return
 
     with h5py.File(filepath, mode='r') as file:
@@ -188,7 +191,7 @@ def calc_heat_flux_z(data_dir, output_dir):
         t = get_dims(file, 'FluxHeatConv')[0]
 
         duration = min(params['duration'], t[-1])
-        if duration < params['average_interval']: print('WARNING: averaging interval longer than simulation duration, averaging over entire duration...')
+        if duration < params['average_interval']: logger.info('WARNING: averaging interval longer than simulation duration, averaging over entire duration...')
         tstart = max(duration - params['average_interval'], 0)
 
         task = get_field(file, 'FluxHeatConv')
@@ -206,10 +209,10 @@ def calc_heat_flux_z(data_dir, output_dir):
 
 
 def calc_energy(data_dir, output_dir):
-    print('Calculating kinetic energy...')
+    logger.info('Calculating kinetic energy...')
     filepath = path.join(data_dir, 'analysis.h5')
     if not path.exists(filepath):
-        print("  '{}' is required, skipping".format(filepath))
+        logger.info("  '{}' is required, skipping".format(filepath))
         return
 
     with h5py.File(filepath, mode='r') as file:
@@ -220,19 +223,19 @@ def calc_energy(data_dir, output_dir):
 
 def calc_velocity_filters(data_dir, output_dir):
     """Plot a snapshot in time of the velocities, against the low and high pass filtered versions"""
-    print('Calculating velocity filter snapshots...')
+    logger.info('Calculating velocity filter snapshots...')
     params = utils.read_params(data_dir)
     filepath1 = path.join(data_dir, 'interp_u.h5')
     filepath2 = path.join(data_dir, 'interp_v.h5')
     filepath3 = path.join(data_dir, 'interp_w.h5')
     if not path.exists(filepath1):
-        print("  '{}' is required, skipping".format(filepath1))
+        logger.info("  '{}' is required, skipping".format(filepath1))
         return
     if not path.exists(filepath2):
-        print("  '{}' is required, skipping".format(filepath2))
+        logger.info("  '{}' is required, skipping".format(filepath2))
         return
     if not path.exists(filepath3):
-        print("  '{}' is required, skipping".format(filepath3))
+        logger.info("  '{}' is required, skipping".format(filepath3))
         return
 
     with h5py.File(filepath1, mode='r') as file:
@@ -240,7 +243,7 @@ def calc_velocity_filters(data_dir, output_dir):
         t = get_dims_interp(file)[0]
 
         duration = min(params['duration'], t[-1])
-        if duration < params['average_interval']: print('WARNING: averaging interval longer than simulation duration, averaging over entire duration...')
+        if duration < params['average_interval']: logger.info('WARNING: averaging interval longer than simulation duration, averaging over entire duration...')
         tstart = duration - params['average_interval']
 
         # Correct the order of the axes after reading in the fields
@@ -268,27 +271,27 @@ def calc_velocity_filters(data_dir, output_dir):
 
 
 def calc_stresses(data_dir, output_dir):
-    print('Calculating Reynolds stresses')
+    logger.info('Calculating Reynolds stresses')
     params = utils.read_params(data_dir)
     filepath = path.join(data_dir, 'vel.h5')
     if not path.exists(filepath):
-        print("  '{}' is required, skipping".format(filepath))
+        logger.info("  '{}' is required, skipping".format(filepath))
         return
 
-    print("  Reading velocity fields from file...")
+    logger.info("  Reading velocity fields from file...")
     with h5py.File(filepath, mode='r') as file:
 
         t = get_dims(file, 'u')[0]
 
         duration = min(params['duration'], t[-1])
-        if duration < params['average_interval']: print('WARNING: averaging interval longer than simulation duration, averaging over entire duration...')
+        if duration < params['average_interval']: logger.info('WARNING: averaging interval longer than simulation duration, averaging over entire duration...')
         tstart = max(duration - params['average_interval'], 0)
 
         u = get_field(file, 'u')
         v = get_field(file, 'v')
         w = get_field(file, 'w')
 
-        print("  Calculating stresses...")
+        logger.info("  Calculating stresses...")
         u_avgt = np.array(average_in_time(t, tstart, lambda i: u[i]))
         v_avgt = np.array(average_in_time(t, tstart, lambda i: v[i]))
         w_avgt = np.array(average_in_time(t, tstart, lambda i: w[i]))
@@ -306,14 +309,14 @@ def calc_stresses(data_dir, output_dir):
 
 
 def calc_momentum_terms(data_dir, output_dir):
-    print('Calculating averaged momentum terms...')
+    logger.info('Calculating averaged momentum terms...')
     params = utils.read_params(data_dir)
     filepath = path.join(data_dir, 'vel.h5')
     if not path.exists(filepath):
-        print("  '{}' is required, skipping".format(filepath))
+        logger.info("  '{}' is required, skipping".format(filepath))
         return
 
-    print("  Reading velocity fields from file...")
+    logger.info("  Reading velocity fields from file...")
     with h5py.File(filepath, mode='r') as file:
 
         t, x, y, z = get_dims(file, 'u')
@@ -322,7 +325,7 @@ def calc_momentum_terms(data_dir, output_dir):
         v = get_field(file, 'v')
         w = get_field(file, 'w')
 
-        print("  Calculating terms...")
+        logger.info("  Calculating terms...")
         viscous_x, viscous_y, coriolis_x, coriolis_y, rs_x, rs_y = momentum_terms(params, t, z, u, v, w)
 
     output_file = path.join(output_dir, "momentum_terms.csv")
@@ -335,22 +338,22 @@ def calc_momentum_terms(data_dir, output_dir):
 
 
 def calc_momentum_terms_filtered(data_dir, output_dir):
-    print('Calculating filtered averaged momentum terms...')
+    logger.info('Calculating filtered averaged momentum terms...')
     params = utils.read_params(data_dir)
     filepath1 = path.join(data_dir, 'interp_u.h5')
     filepath2 = path.join(data_dir, 'interp_v.h5')
     filepath3 = path.join(data_dir, 'interp_w.h5')
     if not path.exists(filepath1):
-        print("  '{}' is required, skipping".format(filepath1))
+        logger.info("  '{}' is required, skipping".format(filepath1))
         return
     if not path.exists(filepath2):
-        print("  '{}' is required, skipping".format(filepath2))
+        logger.info("  '{}' is required, skipping".format(filepath2))
         return
     if not path.exists(filepath3):
-        print("  '{}' is required, skipping".format(filepath3))
+        logger.info("  '{}' is required, skipping".format(filepath3))
         return
 
-    print("  Reading unfiltered fields from files...")
+    logger.info("  Reading unfiltered fields from files...")
     with h5py.File(filepath1, mode='r') as file:
         t, x, y, z = get_dims_interp(file)
         u = get_field(file, 'u')
@@ -359,24 +362,24 @@ def calc_momentum_terms_filtered(data_dir, output_dir):
         v = get_field(file, 'v')
         coriolis_x = average_in_time(t, 0, lambda i: average_horizontal(v[i]))
 
-    print("  Reading lowpassed fields from files...")
+    logger.info("  Reading lowpassed fields from files...")
     with h5py.File(filepath1, mode='r') as file:
         u_low = get_field(file, 'u_lowpass')
         with h5py.File(filepath2, mode='r') as file:
             v_low = get_field(file, 'v_lowpass')
             with h5py.File(filepath3, mode='r') as file:
                 w_low = get_field(file, 'w_lowpass')
-                print("  Calculating lowpass filtered terms...")
+                logger.info("  Calculating lowpass filtered terms...")
                 viscous_x_low, viscous_y_low, _, _, rs_x_low, rs_y_low = momentum_terms(params, t, z, u_low, v_low, w_low)
 
-    print("  Reading highpassed fields from files...")
+    logger.info("  Reading highpassed fields from files...")
     with h5py.File(filepath1, mode='r') as file:
         u_high = get_field(file, 'u_highpass')
         with h5py.File(filepath2, mode='r') as file:
             v_high = get_field(file, 'v_highpass')
             with h5py.File(filepath3, mode='r') as file:
                 w_high = get_field(file, 'w_highpass')
-                print("  Calculating highpass filtered terms...")
+                logger.info("  Calculating highpass filtered terms...")
                 viscous_x_high, viscous_y_high, _, _, rs_x_high, rs_y_high = momentum_terms(params, t, z, u_high, v_high, w_high)
 
     output_file = path.join(output_dir, "momentum_terms_filtered.csv")
@@ -389,7 +392,7 @@ def calc_momentum_terms_filtered(data_dir, output_dir):
 
 
 def save_axes(data_dir, output_dir):
-    print("Saving axes...")
+    logger.info("Saving axes...")
 
     filepath = path.join(data_dir, 'analysis.h5')
     if path.exists(filepath):
@@ -397,9 +400,9 @@ def save_axes(data_dir, output_dir):
             t_analysis = get_dims(file, 'E')[0]
         output_file = path.join(output_dir, "axis_t_analysis.csv")
         np.savetxt(output_file, t_analysis.T, delimiter=',')
-        print("  Saved t_analysis")
+        logger.info("  Saved t_analysis")
     else:
-        print("  Analysis file doesn't exist, skipping...")
+        logger.info("  Analysis file doesn't exist, skipping...")
 
     filepath = path.join(data_dir, 'vel.h5')
     # Use axes from analysis.h5 if vel.h5 doesn't exist
@@ -416,9 +419,9 @@ def save_axes(data_dir, output_dir):
         np.savetxt(output_file, y.T, delimiter=',')
         output_file = path.join(output_dir, "axis_z.csv")
         np.savetxt(output_file, z.T, delimiter=',')
-        print("  Saved t, x, y and z")
+        logger.info("  Saved t, x, y and z")
     else:
-        print("  '{}' doesn't exist, skipping...".format(filepath))
+        logger.info("  '{}' doesn't exist, skipping...".format(filepath))
 
     filepath = path.join(data_dir, 'interp_u.h5')
     if path.exists(filepath):
@@ -428,14 +431,14 @@ def save_axes(data_dir, output_dir):
         np.savetxt(output_file, t_interp.T, delimiter=',')
         output_file = path.join(output_dir, "axis_z_fourier.csv")
         np.savetxt(output_file, z_fourier.T, delimiter=',')
-        print("  Saved z_fourier")
+        logger.info("  Saved z_fourier")
     else:
-        print("  Interpolated fields don't exist (use interpolate.py script to create them), skipping...".format(filepath))
+        logger.info("  Interpolated fields don't exist (use interpolate.py script to create them), skipping...".format(filepath))
 
 
 def main():
     if len(sys.argv) < 2:
-        print("Please provide one argument: The file path to the directory to read the analysis from.")
+        logger.info("Please provide one argument: The file path to the directory to read the analysis from.")
         exit(1)
     data_dir = sys.argv[1]
     output_dir = path.join(data_dir, "postproc/")
@@ -455,7 +458,7 @@ def main():
     calc_momentum_terms(data_dir, output_dir)
     calc_momentum_terms_filtered(data_dir, output_dir)
 
-    print("Done.")
+    logger.info("Done.")
 
 if __name__ == "__main__":
     main()
