@@ -391,6 +391,82 @@ def calc_momentum_terms_filtered(data_dir, output_dir):
     )
 
 
+def calc_power_spectrum(data_dir, output_dir):
+    print('Calculating power spectrum...')
+    filepath1 = path.join(data_dir, 'interp_u.h5')
+    filepath2 = path.join(data_dir, 'interp_v.h5')
+    filepath3 = path.join(data_dir, 'interp_w.h5')
+    params = utils.read_params(data_dir)
+    if not path.exists(filepath1):
+        print("  requires '{}'".format(filepath1))
+        return
+    if not path.exists(filepath2):
+        print("  requires '{}'".format(filepath2))
+        return
+    if not path.exists(filepath3):
+        print("  requires '{}'".format(filepath3))
+        return
+
+    with h5py.File(filepath1, mode='r') as file:
+        t, x, y, z = get_dims_interp(file)
+        u = get_field(file, 'u')
+        with h5py.File(filepath2, mode='r') as file:
+            v = get_field(file, 'v')
+            with h5py.File(filepath3, mode='r') as file:
+                w = get_field(file, 'w')
+
+                duration = min(params['duration'], t[-1])
+                if duration < params['average_interval']: print('WARNING: averaging interval longer than simulation duration, averaging over entire duration...')
+                tstart = duration - params['average_interval']
+
+                epsilon = 1e-50
+
+                u_avgt = np.array(average_in_time(t, tstart, lambda i: u[i]))
+                v_avgt = np.array(average_in_time(t, tstart, lambda i: v[i]))
+                w_avgt = np.array(average_in_time(t, tstart, lambda i: w[i]))
+
+    ampls_u = abs(np.fft.fftn(u_avgt)/u_avgt.size)
+    ampls_v = abs(np.fft.fftn(v_avgt)/v_avgt.size)
+    ampls_w = abs(np.fft.fftn(w_avgt)/w_avgt.size)
+
+    E_u = ampls_u**2
+    E_v = ampls_v**2
+    E_w = ampls_w**2
+
+    box_sidex = np.shape(E_u)[0]
+    box_sidey = np.shape(E_u)[1]
+    box_sidez = np.shape(E_u)[2]
+
+    box_radius = int(np.ceil((np.sqrt((box_sidex)**2+(box_sidey)**2+(box_sidez)**2))/2.)+1)
+
+    centerx = int(box_sidex/2)
+    centery = int(box_sidey/2)
+    centerz = int(box_sidez/2)
+
+    E_u_avsphr = np.zeros(box_radius,)+epsilon ## size of the radius
+    E_v_avsphr = np.zeros(box_radius,)+epsilon ## size of the radius
+    E_w_avsphr = np.zeros(box_radius,)+epsilon ## size of the radius
+
+    for i in range(box_sidex):
+        for j in range(box_sidey):
+            for k in range(box_sidez):
+                wn =  int(np.round(np.sqrt((i-centerx)**2+(j-centery)**2+(k-centerz)**2)))
+                E_u_avsphr[wn] = E_u_avsphr[wn] + E_u[i,j,k]
+                E_v_avsphr[wn] = E_v_avsphr[wn] + E_v[i,j,k]
+                E_w_avsphr[wn] = E_w_avsphr[wn] + E_w[i,j,k]
+
+    E_avsphr = 0.5*(E_u_avsphr + E_v_avsphr + E_w_avsphr)
+
+    E_avsphr = E_avsphr[::-1]
+
+    k = np.arange(len(E_avsphr))
+    output_file = path.join(output_dir, "axis_k_power.csv")
+    np.savetxt(output_file, k.T, delimiter=',')
+
+    output_file = path.join(output_dir, "power.csv")
+    np.savetxt(output_file, E_avsphr.T, delimiter=',', header="E(k_power)")
+
+
 def save_axes(data_dir, output_dir):
     logger.info("Saving axes...")
 
@@ -454,6 +530,7 @@ def main():
     calc_heat_flux_z(data_dir, output_dir)
     calc_energy(data_dir, output_dir)
     calc_velocity_filters(data_dir, output_dir)
+    calc_power_spectrum(data_dir, output_dir)
     calc_stresses(data_dir, output_dir)
     calc_momentum_terms(data_dir, output_dir)
     calc_momentum_terms_filtered(data_dir, output_dir)

@@ -195,6 +195,37 @@ def plot_energy(csv_dir, plot_dir, t):
     plt.close()
 
 
+def plot_rossby(csv_dir, plot_dir, t):
+    image_name = "rossby.{}".format(FILE_EXT)
+    print('Plotting "{}"...'.format(image_name))
+    filepath = path.join(csv_dir, 'kinetic.csv')
+    if not path.exists(filepath):
+        print("Plotting '{}' requires '{}'".format(image_name, filepath))
+        return
+    params = utils.read_params(data_dir)
+    KE = np.loadtxt(filepath, delimiter=',')
+    # KE = 1/2 * <u^2 + v^2 + w^2>
+    # RMS = sqrt(<u^2 + v^2 + w^2>)
+    RMS = np.sqrt(2 * KE)
+    Ro = RMS / (np.sqrt(params["Ta"]) * params["Theta"] * params["Lz"])
+    Ro_avgt = np.mean(Ro[t > t[-1] - params["average_interval"]])
+    print("Average Ro = {}".format(Ro_avgt))
+
+    plots_shape = np.array((1, 1))
+    plots_size_each = np.array((4, 2.7))
+    fig = plt.figure(figsize=plots_shape[::-1] * plots_size_each)
+
+    ax = fig.add_subplot(*plots_shape, 1)
+    ax.axhline(y=Ro_avgt, c="grey", ls='--')
+    ax.plot(t, Ro)
+    ax.set_ylabel('Ro')
+    ax.set_xlabel(r'$t$' if LATEX else 't')
+
+    fig.set_tight_layout(True)
+    plt.savefig(path.join(plot_dir, image_name))
+    plt.close()
+
+
 def plot_velocity_filters(csv_dir, plot_dir, x, z):
     """Plot a snapshot in time of the velocities, against the low and high pass filtered versions"""
     image_name = "velocity_filters.{}".format(FILE_EXT)
@@ -319,6 +350,33 @@ def plot_momentum_terms_filtered(data_dir, plot_dir, z):
     plt.close()
 
 
+def plot_power_spectrum(csv_dir, plot_dir, k_power):
+    image_name = "power_spectrum.{}".format(FILE_EXT)
+    print('Plotting "{}"...'.format(image_name))
+    filepath = path.join(csv_dir, 'power.csv')
+    if not path.exists(filepath):
+        print("Plotting '{}' requires '{}'".format(image_name, filepath))
+        return
+    power = np.loadtxt(filepath, delimiter=',')
+    k_kolmo = k_power#[k_power <= 10]
+    kolmo = np.amax(power) * k_kolmo**(-5/3)
+
+    plots_shape = np.array((1, 1))
+    plots_size_each = np.array((3.2, 2.5))
+    fig = plt.figure(figsize=plots_shape[::-1] * plots_size_each)
+
+    ax = fig.add_subplot(*plots_shape, 1)
+    ax.loglog(k_kolmo, kolmo, c='lightgrey', lw=2, ls='--')
+    ax.loglog(k_power, power, 'k')
+    ax.set_ylabel(r'$E(k)$' if LATEX else 'E(k)')
+    ax.set_xlabel(r'$k$' if LATEX else 'k')
+    ax.set_ylim([10**-25,10**3])
+
+    fig.set_tight_layout(True)
+    plt.savefig(path.join(plot_dir, image_name))
+    plt.close()
+
+
 if __name__ == "__main__":
     if len(sys.argv) < 2:
         print("Please provide one argument: The file path to the directory to read the analysis from.")
@@ -337,15 +395,19 @@ if __name__ == "__main__":
     plt.rcParams["font.size"] = 10
     plt.rcParams["axes.titlesize"] = 10
 
-    axis_names = ('t_analysis', 't', 'x', 'y', 'z', 'z_fourier')
+    axis_names = ('t_analysis', 't', 'x', 'y', 'z', 'z_fourier', 'k_power')
     axis_files = [ path.join(csv_dir, 'axis_{}.csv'.format(axis)) for axis in axis_names ]
     axis_files = [ file if path.exists(file) else None for file in axis_files ]
-    (t_analysis, t, x, y, z, z_fourier) = [ np.loadtxt(file, delimiter=',').flatten() if file else None for file in axis_files ]
+    axes = [ np.loadtxt(file, delimiter=',').flatten() if file else None for file in axis_files ]
 
-    axis_shapes = [ len(axis) if axis is not None else 0 for axis in (t_analysis, t, x, y, z, z_fourier) ]
+    axis_shapes = [ len(axis) if axis is not None else 0 for axis in axes ]
     for name, shape in zip(axis_names, axis_shapes):
         if shape > 0: print("Have axis '{}', length {}".format(name, shape))
 
+    (t_analysis, t, x, y, z, z_fourier, k_power) = axes
+
+    plot_rossby(csv_dir, plot_dir, t_analysis)
+    plot_power_spectrum(csv_dir, plot_dir, k_power)
     plot_stresses(csv_dir, plot_dir, z)
     plot_velocities(csv_dir, plot_dir, x, z)
     plot_temperature(csv_dir, plot_dir, x, y, z)
