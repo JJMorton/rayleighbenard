@@ -42,6 +42,11 @@ def run(data_dir):
     problem.parameters['Ta'] = params["Ta"]
     problem.parameters['Theta'] = params["Theta"]
     problem.parameters['X'] = params["Ra"]/params["Pr"]
+    
+    ncc = domain.new_field()
+    ncc['g'] = params["beta"]*params["Ta"]*x
+    ncc.meta['y','z']['constant'] = True
+    problem.parameters['f'] = ncc
 
     # Defining d/dz of T, u, v and w for reducing our equations to first order
     problem.add_equation("dz(u) - uz = 0")
@@ -54,9 +59,9 @@ def run(data_dir):
     # x-component of the momentum equation
     problem.add_equation("dt(u) + dx(p) - (dx(dx(u)) + dy(dy(u)) + dz(uz)) - (Ta ** 0.5) * v * cos(Theta) = - (u * dx(u) + v * dy(u) + w * uz)")
     # y-component of the momentum equation
-    problem.add_equation("dt(v) + dy(p) - (dx(dx(v)) + dy(dy(v)) + dz(vz)) + (Ta ** 0.5) * (u * cos(Theta) + w * sin(Theta)) = - (u * dx(v) + v * dy(v) + w * vz)")
+    problem.add_equation("dt(v) + dy(p) - (dx(dx(v)) + dy(dy(v)) + dz(vz)) + (Ta ** 0.5) * (u * cos(Theta) + w * sin(Theta)) = - (u * dx(v) + v * dy(v) + w * vz) + f * w")
     # z-component of the momentum equation
-    problem.add_equation("dt(w) + dz(p) - (dx(dx(w)) + dy(dy(w)) + dz(wz)) - (Ta ** 0.5) * v * sin(Theta) - X * T = -(u * dx(w) + v * dy(w) + w * wz)")
+    problem.add_equation("dt(w) + dz(p) - (dx(dx(w)) + dy(dy(w)) + dz(wz)) - (Ta ** 0.5) * v * sin(Theta) - X * T = -(u * dx(w) + v * dy(w) + w * wz) - f * v")
     # Temperature equation
     problem.add_equation("Pr * dt(T) - (dx(dx(T)) + dy(dy(T)) + dz(Tz)) = - Pr * (u * dx(T) + v * dy(T) + w * Tz)")
 
