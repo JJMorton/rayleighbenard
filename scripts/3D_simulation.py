@@ -44,7 +44,7 @@ def run(data_dir):
     problem.parameters['X'] = params["Ra"]/params["Pr"]
     
     ncc = domain.new_field()
-    ncc['g'] = params["beta"]*params["Ta"]*x
+    ncc['g'] = params["beta"]*(params["Ta"]**0.5)*x
     ncc.meta['y','z']['constant'] = True
     problem.parameters['f'] = ncc
 
