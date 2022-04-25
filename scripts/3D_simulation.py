@@ -29,6 +29,7 @@ def run(data_dir):
     z_basis = de.Chebyshev('z',params["resZ"],interval=(0,params["Lz"]),dealias=2) # Chebyshev basis in z
     domain = de.Domain([x_basis, y_basis, z_basis], grid_dtype=np.float64, mesh=params["mesh"])  # Defining domain
     z = domain.grid(1, scales=1)                                   # accessing the z values
+    x = domain.grid(0)
 
     # 3D Boussinesq hydrodynamics
     problem = de.IVP(domain,variables=['T','p','u','v','w','Tz','uz','vz','wz'])
